@@ -206,7 +206,7 @@
             <div class="flex items-center gap-1.5 sm:gap-2.5">
                 <!-- 桌面版音樂與三語切換 -->
                 <div class="hidden lg:flex items-center gap-1.5 bg-slatecard border border-white/10 px-2.5 py-1 rounded-xl">
-                    <button onclick="TownBGM.toggle()" id="desk-bgm-btn" class="text-xs font-black text-amber-300 hover:text-amber-200">🎵 Lo-Fi</button>
+                    <button onclick="TownBGM.toggle()" id="desk-bgm-btn" class="text-xs font-black text-amber-300 hover:text-amber-200">🎵 BGM</button>
                     <button onclick="TownBGM.nextTrack()" class="text-[11px] text-gray-400 hover:text-white px-1" title="下一首">⏭</button>
                     <span class="text-white/15">|</span>
                     <button onclick="I18N.setLang('zh')" class="lang-btn-zh px-1.5 py-0.5 rounded text-[10px] font-black bg-amber-400 text-black">中</button>
@@ -237,7 +237,7 @@
         <div class="lg:hidden border-t border-white/10 bg-slatecard/90 px-3 py-1.5 flex items-center justify-between gap-2 text-xs">
             <div class="flex items-center gap-1.5 min-w-0">
                 <button onclick="TownBGM.toggle()" id="mob-bgm-btn" class="px-2 py-1 rounded-lg bg-obsidian border border-white/10 text-[11px] font-black text-amber-300 truncate max-w-[140px]">
-                    🎵 Lo-Fi
+                    🎵 BGM
                 </button>
                 <button onclick="TownBGM.nextTrack()" class="px-2 py-1 rounded-lg bg-obsidian border border-white/10 text-[11px] text-gray-300">⏭</button>
             </div>
@@ -1151,8 +1151,10 @@
             src: null,
             // original lo-fi loops; each file has 0.1 s of wrap-around padding so the loop is gapless
             tracks: [
-                { name: 'Vault Night', url: 'audio/bgm_vault_night.mp3', loopStart: 0.1, loopLen: 2171076 / 44100 },
-                { name: 'Card Shop Afternoon', url: 'audio/bgm_card_shop.mp3', loopStart: 0.1, loopLen: 2016000 / 44100 }
+                { name: 'Adventure Road', url: 'audio/bgm_adventure_road.mp3', loopStart: 0.1, loopLen: 1245176 / 44100 },
+                { name: 'Cozy Town', url: 'audio/bgm_cozy_town.mp3', loopStart: 0.1, loopLen: 1628307 / 44100 },
+                { name: 'Vault Night Lo-Fi', url: 'audio/bgm_vault_night.mp3', loopStart: 0.1, loopLen: 2171076 / 44100 },
+                { name: 'Card Shop Lo-Fi', url: 'audio/bgm_card_shop.mp3', loopStart: 0.1, loopLen: 2016000 / 44100 }
             ],
             pref() { try { return localStorage.getItem('pv_bgm'); } catch (e) { return null; } },
             savePref(v) { try { localStorage.setItem('pv_bgm', v); } catch (e) {} },
@@ -1220,7 +1222,7 @@
             },
             updateLabel() {
                 const tr = this.tracks[this.trackIdx];
-                const txt = this.playing ? `🎵 ${tr.name}` : '🎵 Lo-Fi';
+                const txt = this.playing ? `🎵 ${tr.name}` : '🎵 BGM';
                 ['desk-bgm-btn', 'mob-bgm-btn'].forEach(id => {
                     const el = document.getElementById(id);
                     if (el) el.textContent = txt;

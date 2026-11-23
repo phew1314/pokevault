@@ -223,5 +223,148 @@ def make_glitch():
     x *= np.clip((1.2 - t) / 0.2, 0, 1) * np.clip(t / 0.02, 0, 1)
     tr = track(1.6); place(tr, x * 0.5, 0); place(tr, boom(1.0) * 0.4, 0.85); finish(tr, 'sfx_glitch', 0.15)
 
+
+# ================================================================ HYPE MUSIC LAYER (original, GB-chiptune + orchestral)
+import chip as C
+BEAT = F(88) / 9.0          # 149 BPM: tear lands on beat 4, card lands on beat 9
+def B(b): return b * BEAT
+
+def groove(tr, b0, b1, root=45, lead=True, vol=1.0):
+    """driving chiptune groove: kick/hat, 8th-note wave bass, short pulse stabs"""
+    b = b0
+    while b < b1:
+        C.place(tr, C.nz_drum('k', 0.9), B(b), 0.55 * vol)
+        C.place(tr, C.nz_drum('h', 0.8), B(b + 0.5), 0.5 * vol, 0.3)
+        if int(b) % 2 == 1: C.place(tr, C.nz_drum('s', 0.7), B(b), 0.35 * vol, -0.1)
+        for h in (0, 0.5):
+            C.place(tr, C.wave_bass(C.hz(root if h == 0 else root + 12), BEAT * 0.45), B(b + h), 0.16 * vol)
+        b += 1
+    if lead:
+        for i, (bb, m) in enumerate([(b0, 69), (b0 + 0.75, 72), (b0 + 1.5, 76), (b0 + 2.5, 75), (b0 + 3, 76)]):
+            if bb < b1: C.place(tr, C.pulse(C.hz(m), BEAT * 0.4, 0.25), B(bb), 0.07 * vol, 0.2)
+
+def build(tr, b0, b1, chords, vol=1.0, rate=22):
+    """accelerating snare roll + rising arps through a chord sequence + string riser"""
+    dur = B(b1) - B(b0)
+    C.place(tr, C.drumroll(dur, 149, 4, 32), B(b0), 0.6 * vol)
+    seg = dur / len(chords)
+    for i, ch in enumerate(chords):
+        C.place(tr, C.arp_run(ch, seg, rate + i * 4, 2, 0.125 if i % 2 else 0.25), B(b0) + i * seg, (0.05 + 0.025 * i) * vol, 0.25 if i % 2 else -0.25)
+        C.place(tr, C.saw_stack([C.hz(m - 12) for m in ch[:3]], seg + 0.05, 1.0, 0.05, 1500 + 800 * i), B(b0) + i * seg, (0.18 + 0.06 * i) * vol)
+        C.place(tr, C.wave_bass(C.hz(ch[0] - 24), seg), B(b0) + i * seg, 0.2 * vol)
+
+def hero_lead(tr, b0, bars_beats, vol=1.0):
+    """original heroic chiptune lead + harmony over driving drums"""
+    mel = [(0, 69, 0.5), (0.5, 73, 0.5), (1, 76, 1), (2, 81, 0.75), (2.75, 80, 0.25), (3, 78, 0.5), (3.5, 76, 0.5),
+           (4, 78, 1.5), (5.5, 81, 0.5), (6, 85, 2)]
+    for bb, m, d in mel:
+        if bb >= bars_beats: break
+        C.place(tr, C.pulse(C.hz(m), BEAT * d * 0.95, 0.5, 1.0, vib=0.006), B(b0 + bb), 0.075 * vol, 0.15)
+        C.place(tr, C.pulse(C.hz(m - 4 if m % 2 else m - 3), BEAT * d * 0.95, 0.125, 1.0), B(b0 + bb), 0.04 * vol, -0.3)
+    b = 0
+    roots = [45, 45, 50, 50, 52, 52, 45, 45]
+    while b < bars_beats:
+        C.place(tr, C.nz_drum('k'), B(b0 + b), 0.5 * vol)
+        C.place(tr, C.nz_drum('s'), B(b0 + b + 0.5), 0.3 * vol)
+        C.place(tr, C.nz_drum('h'), B(b0 + b + 0.25), 0.35 * vol, 0.3); C.place(tr, C.nz_drum('h'), B(b0 + b + 0.75), 0.35 * vol, 0.3)
+        r = roots[int(b) % len(roots)]
+        for h in (0, 0.5): C.place(tr, C.wave_bass(C.hz(r + (12 if h else 0)), BEAT * 0.45), B(b0 + b + h), 0.17 * vol)
+        b += 1
+
+AM, F_, G_, E_ = [57, 60, 64], [53, 57, 60], [55, 59, 62], [52, 56, 59]
+A_MAJ = [57, 61, 64, 69]
+
+def music_intro(tr):
+    groove(tr, 0, 4)
+    C.place(tr, C.stab([57, 60, 64, 69], 0.8), B(4), 0.5)                        # the tear
+    build(tr, 4, 9, [F_, G_, [57, 60, 64], E_])
+    C.place(tr, C.stab([57, 61, 64, 69, 73], 1.0, 0.7), B(9), 0.75)              # card lands — bright A major
+    C.place(tr, C.saw_stack([C.hz(m) for m in [57, 62, 64, 69]], 1.6, 1.0, 0.2, 2500), B(9) + 0.3, 0.16)  # sus4: hang for the flip
+
+def music_bigA(tr):
+    groove(tr, 0, 4)
+    C.place(tr, C.stab([57, 60, 64, 69], 0.9), B(4), 0.55)
+    build(tr, 4, 9, [F_, G_, [59, 62, 66], [61, 64, 68]], vol=1.25, rate=26)   # keeps climbing
+    C.place(tr, C.stab([57, 61, 64, 69, 73], 1.0, 0.9), B(9), 0.95)
+    hero_lead(tr, 9.5, 6.5, 1.1)
+    C.place(tr, C.saw_stack([C.hz(m) for m in [57, 64, 69, 73]], 1.8, 1.0, 0.3, 3000), F(124) - 0.4, 0.18)
+
+def music_rev(tr):
+    C.heartbeat(F(12), tr, beats=4, bpm=95, vol=0.9)                             # in the dark
+    b0 = F(45) / BEAT
+    build(tr, b0, 9, [[50, 53, 57], [52, 55, 59], [53, 57, 60], [56, 59, 63]], vol=1.3, rate=28)
+    C.place(tr, C.stab([57, 61, 64, 69, 73], 1.1, 0.9), B(9), 1.0)
+    hero_lead(tr, 9.5, 5, 1.1)
+
+def add_music(tr, fn, gain):
+    m = np.zeros_like(tr); fn(m)
+    m = m / max(np.abs(m).max(), 1e-6)
+    tr += m * gain
+
+# rebuild clip tracks with music under the SFX
+_old_intro, _old_bigA, _old_rev = make_intro, make_bigA, make_rev
+def make_intro():
+    tr = track(F(108) + 1.8); intro_base(tr); add_music(tr, music_intro, 0.75); finish(tr, 'sfx_intro', rev=0.18)
+def make_bigA():
+    tr = track(F(124) + 3.0); intro_base(tr, True)
+    place(tr, crinkle(F(80) - F(44), 1400), F(44), 0.9, 0.1)
+    place(tr, riser(F(88) - F(42)), F(42), 0.8)
+    place(tr, shimmer(F(100) - F(44), count=70, decay=0.5), F(44), 1.0)
+    place(tr, boom(3.0), F(88), 1.0)
+    place(tr, shimmer(2.5, count=40, lo=1500, hi=6000, decay=1.0), F(88), 1.2)
+    add_music(tr, music_bigA, 0.8); finish(tr, 'sfx_bigA', rev=0.22)
+def make_rev():
+    tr = track(F(112) + 3.0)
+    place(tr, boom(1.2) * 0.5, 0, 0.6)
+    place(tr, lp(noise(T(F(46))), 120) * 0.05, 0, 1.0)
+    on = {9: .5, 10: 0, 12: .8, 13: .1, 15: 1, 16: 0, 19: .6, 20: 0, 24: .3, 26: 0, 29: .9, 30: .05, 33: .4, 34: 0}
+    prev = 0
+    for f in sorted(on):
+        lvl = on[f]
+        if (lvl > 0.2) != (prev > 0.2): place(tr, relay(), F(f), 0.9, rng.uniform(-0.3, 0.3))
+        if lvl > 0.05: place(tr, hum(1 / 24 * 2), F(f), lvl * 1.2)
+        prev = lvl
+    place(tr, riser(F(88) - F(44), 55, 280), F(44), 0.9)
+    t = F(50)
+    for i in range(7):
+        d = 0.16 + i * 0.05
+        place(tr, whoosh(d, 400, 2500 - i * 200), t, 0.5 + 0.08 * i, 0.4 if i % 2 else -0.4); t += d * 0.8
+    place(tr, boom(3.0), F(88), 1.0); place(tr, tap(1.0), F(88), 0.8)
+    place(tr, shimmer(2.5, count=45, lo=1500, hi=6500, decay=1.0), F(88), 1.2)
+    add_music(tr, music_rev, 0.85); finish(tr, 'sfx_rev', rev=0.22)
+
+def make_reveal_normal():
+    tr = track(1.6)   # short original "you got it!" chiptune jingle
+    for i, (dt, m, d) in enumerate([(0, 76, .09), (.09, 79, .09), (.18, 83, .09), (.27, 88, .5)]):
+        C.place(tr, C.pulse(C.hz(m), d, 0.5, 1.0, decay=2), dt, 0.18, 0.1)
+        C.place(tr, C.pulse(C.hz(m - 7), d, 0.25, 1.0, decay=2), dt, 0.09, -0.2)
+    C.place(tr, C.wave_bass(C.hz(52), 0.5), 0.27, 0.25)
+    place(tr, shimmer(1.0, count=10, decay=0.6), 0.27, 0.8)
+    finish(tr, 'sfx_reveal', 0.2)
+
+def make_reveal_rare():
+    tr = track(2.6)
+    seq = [(0, 72), (.08, 76), (.16, 79), (.24, 84), (.36, 83), (.44, 84), (.52, 88)]
+    for dt, m in seq: C.place(tr, C.pulse(C.hz(m), .11 if m != 88 else .8, 0.5, 1.0, vib=.006), dt, 0.16, 0.1)
+    C.place(tr, C.stab([60, 64, 67, 72], 0.8, 0.6), 0.52, 0.5)
+    C.place(tr, C.arp_run([72, 76, 79], 0.9, 28, 2, 0.125), 0.6, 0.06, -0.3)
+    place(tr, shimmer(1.8, count=25, decay=0.8), 0.5, 1.0)
+    finish(tr, 'sfx_reveal_rare', 0.25)
+
+def make_reveal_big():
+    tr = track(5.0)
+    C.place(tr, C.stab([57, 61, 64, 69, 73], 1.0, 0.5), 0, 0.8)
+    place(tr, boom(2.5), 0, 0.6)
+    fan = [(0.5, 69, .18), (0.68, 69, .18), (0.86, 69, .18), (1.04, 69, .5), (1.54, 65, .5), (2.04, 67, .5), (2.54, 69, .3), (2.9, 67, .15), (3.05, 69, 1.4)]
+    for dt, m, d in fan:
+        C.place(tr, C.saw_stack([C.hz(m), C.hz(m + 4 if m != 65 else m + 4), C.hz(m + 7)], d, 1.0, 0.01, 4200), dt, 0.55, 0.0)
+        C.place(tr, C.pulse(C.hz(m + 12), d * 0.95, 0.5, 1.0, vib=0.007), dt, 0.06, 0.2)
+    for dt in (0.5, 1.04, 1.54, 2.04, 2.54, 3.05):
+        C.place(tr, C.timpani(55, 0.8), dt, 0.5)
+    C.place(tr, C.stab([57, 61, 64, 69, 73, 76], 1.0, 1.3), 3.05, 0.7)
+    C.place(tr, C.arp_run([69, 73, 76], 1.3, 30, 2, 0.125), 3.1, 0.06, -0.3)
+    place(tr, shimmer(3.0, count=70, decay=1.1), 0.5, 1.3)
+    finish(tr, 'sfx_reveal_big', 0.3)
+
 if __name__ == '__main__':
     make_intro(); make_bigA(); make_rev(); make_flip(); make_reveal_normal(); make_reveal_rare(); make_reveal_big(); make_glitch()
