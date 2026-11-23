@@ -565,7 +565,9 @@
 
     <!-- ==================== 彈窗 1：Three.js 3D 電影級抽卡演出舞台 ==================== -->
     <div id="cinema-modal" class="hidden fixed inset-0 z-50 bg-black flex flex-col items-center justify-center overflow-hidden">
-        <canvas id="cinema-canvas" class="absolute inset-0 w-full h-full block"></canvas>
+        <video id="cinema-video" class="absolute inset-0 w-full h-full object-cover transition-[filter] duration-700" muted playsinline webkit-playsinline preload="auto" disablepictureinpicture></video>
+        <div id="cinema-flash" class="absolute inset-0 pointer-events-none opacity-0 z-[5]"></div>
+        <canvas id="cinema-canvas" class="absolute inset-0 w-full h-full block z-[6]"></canvas>
 
         <!-- 右上角跳過按鈕 -->
         <button onclick="CinemaEngine.skip()" class="absolute top-4 right-4 z-20 px-4 py-2 rounded-full bg-white/15 hover:bg-white/30 backdrop-blur-md border border-white/25 text-white font-black text-xs">
@@ -573,7 +575,7 @@
         </button>
 
         <!-- 中央演出字幕與神卡高光預覽 -->
-        <div class="relative z-10 pointer-events-none text-center px-4 space-y-3 max-w-md">
+        <div class="absolute top-14 left-0 right-0 z-10 pointer-events-none text-center px-4 space-y-3 max-w-md mx-auto">
             <span id="cinema-script-badge" class="inline-block px-3 py-1 rounded-full bg-amber-400/20 border border-amber-400/60 text-amber-300 text-xs font-display font-black tracking-widest">
                 3D CINEMA SUMMON
             </span>
@@ -2023,7 +2025,8 @@
             // 只建立一次 WebGL 畫布並重複使用（避免 iPhone 連抽後 WebGL 用完而黑屏）
             ensureRenderer(canvas, w, h) {
                 if (!this.renderer) {
-                    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+                    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+                    this.renderer.setClearColor(0x000000, 0);
                     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
                 }
                 this.renderer.setSize(w, h, false);
@@ -2127,104 +2130,215 @@
                 return parts;
             },
 
-            play(cards, callback) {
-                this.onDone = callback;
-                this.finished = false;
-                this.waitingTap = false;
-                const playId = this.playId = (this.playId || 0) + 1;
-                const modal = document.getElementById('cinema-modal');
+            // ---- Blender pre-rendered cinema clips (540x960, the last frame is the card back centred at 55% of the frame height)
+            VIDEO: { w: 540, h: 960, cardFrac: 0.55, src: { intro: 'cinema/intro.mp4', bigA: 'cinema/bigA.mp4', rev: 'cinema/rev.mp4' } },
+            _preloaded: false,
+
+            preloadVideos() {
+                if (this._preloaded) return;
+                this._preloaded = true;
+                // warm the browser cache so the first draw starts instantly
+                Object.values(this.VIDEO.src).forEach(u => { try { fetch(u, { cache: 'force-cache' }).catch(() => {}); } catch (e) {} });
+            },
+
+            // play one clip; resolves when it ends (or fails / is skipped)
+            playClip(name, playId) {
+                return new Promise(resolve => {
+                    const v = document.getElementById('cinema-video');
+                    let done = false;
+                    const end = () => { if (done) return; done = true; v.onended = v.onerror = null; clearTimeout(guard); resolve(); };
+                    v.style.transition = 'none';
+                    v.style.filter = '';
+                    v.onended = end;
+                    v.onerror = end;
+                    v.src = this.VIDEO.src[name];
+                    v.currentTime = 0;
+                    const guard = setTimeout(end, 9000); // never hang if the video stalls
+                    const pr = v.play();
+                    if (pr && pr.catch) pr.catch(end);   // autoplay blocked → skip straight to the reveal
+                    this._clipEnd = end;
+                }).then(() => this.playId === playId && !this.finished);
+            },
+
+            flash(color, ms = 450, peak = 0.85) {
+                const el = document.getElementById('cinema-flash');
+                el.style.transition = 'none';
+                el.style.background = color;
+                el.style.opacity = String(peak);
+                requestAnimationFrame(() => requestAnimationFrame(() => {
+                    el.style.transition = `opacity ${ms}ms ease-out`;
+                    el.style.opacity = '0';
+                }));
+            },
+
+            // Three.js stage on top of the paused last video frame
+            buildStage() {
                 const canvas = document.getElementById('cinema-canvas');
-                const badge = document.getElementById('cinema-script-badge');
-                const title = document.getElementById('cinema-stage-title');
-                const revBox = document.getElementById('cinema-reveal-box');
+                const w = Math.max(300, window.innerWidth);
+                const h = Math.max(400, window.innerHeight);
+                if (this.animId) cancelAnimationFrame(this.animId);
+                this.disposeScene();
+                this.ensureRenderer(canvas, w, h);
+                this.scene = new THREE.Scene();
+                this.camera = new THREE.PerspectiveCamera(55, w / h, 0.1, 100);
+                this.camera.position.set(0, 0, 8);
+                const visH = 2 * 8 * Math.tan(THREE.MathUtils.degToRad(27.5));
+                const visW = visH * (w / h);
+                // where the card sits in the (object-fit: cover) video, in world units
+                const cover = Math.max(w / this.VIDEO.w, h / this.VIDEO.h);
+                const cardPx = this.VIDEO.cardFrac * this.VIDEO.h * cover;
+                const startScale = (cardPx / h) * visH / 3.2;
+                const endScale = Math.min(0.6 * visH / 3.2, 0.82 * visW / 2.3);
+                return { w, h, startScale, endScale };
+            },
 
-                const bestCard = [...cards].sort((a, b) => b.pt - a.pt)[0];
-                const bestTier = resolveCardTier(bestCard);
-                const script = this.scripts[Math.floor(Math.random() * this.scripts.length)];
+            makeCard(card, tier) {
+                const g = new THREE.Group();
+                const front = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 3.2), new THREE.MeshBasicMaterial({ map: PackOpener.createCardFrontTexture(card), transparent: true }));
+                const back = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 3.2), new THREE.MeshBasicMaterial({ map: PackOpener.createCardBackTexture(), transparent: true }));
+                back.rotation.y = Math.PI;
+                const glowColor = tier === 1 ? 0xf472b6 : (tier === 2 ? 0xfacc15 : (tier === 3 ? 0xc084fc : 0x38bdf8));
+                const gc = document.createElement('canvas'); gc.width = 256; gc.height = 320;
+                const gx = gc.getContext('2d');
+                const hex = '#' + glowColor.toString(16).padStart(6, '0');
+                gx.shadowColor = hex; gx.shadowBlur = 48; gx.fillStyle = hex;
+                for (let i = 0; i < 3; i++) gx.fillRect(64, 72, 128, 176);
+                gx.clearRect(70, 78, 116, 164);
+                const glowTex = new THREE.CanvasTexture(gc);
+                const glow = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 5.75), new THREE.MeshBasicMaterial({ map: glowTex, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+                glow.position.z = -0.03;
+                g.add(glow, front, back);
+                g.rotation.y = Math.PI; // back facing the camera, matching the video's last frame
+                g.userData = { front, back, glow };
+                this.scene.add(g);
+                return g;
+            },
 
-                badge.textContent = script.name;
-                title.textContent = script.sub;
-                revBox.classList.add('hidden');
-                modal.classList.remove('hidden');
-                modal.onclick = () => { if (this.waitingTap) this.finish(); };
-                SoundEngine.playClick();
-
-                requestAnimationFrame(() => {
-                    const w = Math.max(300, window.innerWidth);
-                    const h = Math.max(400, window.innerHeight);
-                    if (this.animId) cancelAnimationFrame(this.animId);
-                    this.disposeScene();
-                    this.ensureRenderer(canvas, w, h);
-                    this.scene = new THREE.Scene();
-                    this.scene.background = new THREE.Color(0x020617);
-                    this.camera = new THREE.PerspectiveCamera(55, w / h, 0.1, 100);
-                    this.camera.position.set(0, 0, 8);
-
-                    const mainColor = bestTier === 1 ? 0xf43f5e : (bestTier === 2 ? 0xfacc15 : script.color);
-                    const fx = this.buildEffect(script.key, mainColor);
-                    this.scene.add(fx.group);
-
-                    // 3D 卡片：先背面，揭曉時翻到正面（官方卡圖經跨網域轉接載入）
-                    const cardGroup = new THREE.Group();
-                    const front = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 3.2), new THREE.MeshBasicMaterial({ map: PackOpener.createCardFrontTexture(bestCard), transparent: true }));
-                    const back = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 3.2), new THREE.MeshBasicMaterial({ map: PackOpener.createCardBackTexture() }));
-                    back.rotation.y = Math.PI;
-                    const glowColor = bestTier === 1 ? 0xf472b6 : (bestTier === 2 ? 0xfacc15 : (bestTier === 3 ? 0xc084fc : 0x38bdf8));
-                    const glow = new THREE.Mesh(new THREE.PlaneGeometry(2.75, 3.65), new THREE.MeshBasicMaterial({ color: glowColor, transparent: true, opacity: 0 }));
-                    glow.position.z = -0.02;
-                    cardGroup.add(glow, front, back);
-                    cardGroup.visible = false;
-                    this.scene.add(cardGroup);
-
-                    // 大獎越高，演出越長
-                    const chargeMs = bestTier === 1 ? 3200 : (bestTier === 2 ? 2600 : 1600);
-                    const revealMs = 1100;
-                    const startTime = performance.now();
-                    let revealed = false;
-
-                    const loop = (now) => {
-                        if (this.finished) return;
-                        const el = now - startTime;
-                        const t = Math.min(1, el / chargeMs);
-
-                        fx.spin.forEach((m, i) => { m.rotation.x += 0.02 + i * 0.01; m.rotation.y += 0.035; });
-                        if (fx.tick) fx.tick(t, now);
-                        fx.dust.rotation.z += 0.004 + t * 0.02;
-                        this.camera.position.z = 8 - t * 2;
-                        if (bestTier <= 2 && t > 0.6) this.camera.position.x = (Math.random() - 0.5) * 0.08 * t;
-
-                        if (el >= chargeMs) {
-                            if (!revealed) {
-                                revealed = true;
-                                cardGroup.visible = true;
-                                fx.group.scale.setScalar(0.6);
-                                if (bestTier <= 2) {
-                                    title.textContent = bestTier === 1 ? '🌈 虹光昇格！！傳說 1 等賞降臨！！' : '✨ 金光爆發！！2 等大獎現身！！';
-                                    SoundEngine.playJackpot();
-                                } else {
-                                    title.textContent = `✨ 召喚完成！最高獲得【${bestCard.rarity}】`;
-                                    SoundEngine.playCardSlide();
-                                }
-                            }
-                            const r = Math.min(1, (el - chargeMs) / revealMs);
-                            const ease = 1 - Math.pow(1 - r, 3);
-                            cardGroup.rotation.y = Math.PI * (1 - ease) + Math.sin(now * 0.0015) * 0.12 * ease;
-                            cardGroup.scale.setScalar(0.4 + ease * 0.75);
-                            cardGroup.position.z = ease * 1.2;
-                            glow.material.opacity = (bestTier <= 3 ? 0.55 : 0.3) * ease * (0.75 + Math.sin(now * 0.008) * 0.25);
-                            fx.group.rotation.z += 0.01;
-                            if (r >= 1 && !this.waitingTap) {
-                                this.waitingTap = true;
-                                title.textContent += '　👆 點擊畫面繼續';
-                                setTimeout(() => { if (this.waitingTap && this.playId === playId) this.finish(); }, bestTier <= 2 ? 6000 : 3500);
-                            }
+            // flip from the video's card back to the face; resolves when settled
+            flipReveal(card, tier, playId, { hold = false } = {}) {
+                return new Promise(resolve => {
+                    const st = this.buildStage();
+                    const g = this.makeCard(card, tier);
+                    g.scale.setScalar(st.startScale);
+                    const v = document.getElementById('cinema-video');
+                    v.style.transition = 'filter 380ms ease-out';
+                    v.style.filter = 'brightness(0.32) blur(14px)';
+                    const big = tier <= 2;
+                    const t0 = performance.now();
+                    const LIFT = 260, FLIP = big ? 900 : 650;
+                    let flipped = false, settled = false;
+                    const loop = now => {
+                        if (this.finished || this.playId !== playId) return;
+                        const el = now - t0;
+                        const a = Math.min(1, el / LIFT);
+                        const b = Math.min(1, Math.max(0, (el - LIFT) / FLIP));
+                        const eb = 1 - Math.pow(1 - b, 3);
+                        g.scale.setScalar(THREE.MathUtils.lerp(st.startScale, st.startScale * 1.08, a) + (st.endScale - st.startScale * 1.08) * eb);
+                        g.rotation.y = Math.PI * (1 - eb) + (settled ? Math.sin(now * 0.0015) * 0.1 : 0);
+                        g.rotation.x = Math.sin(b * Math.PI) * -0.18;
+                        g.position.z = Math.sin(b * Math.PI) * 0.6;
+                        if (!flipped && b > 0.5) {
+                            flipped = true;
+                            if (big) { this.flash(tier === 1 ? 'radial-gradient(circle, #fff 0%, #f9a8d4 40%, transparent 75%)' : 'radial-gradient(circle, #fff 0%, #fde047 40%, transparent 75%)', 900, 1); SoundEngine.playJackpot(); }
+                            else SoundEngine.playCardSlide();
                         }
-
+                        g.userData.glow.material.opacity = (tier <= 2 ? 1 : (tier === 3 ? 0.8 : 0.45)) * eb * (0.75 + Math.sin(now * 0.008) * 0.25);
+                        if (b >= 1 && !settled) { settled = true; resolve(g); }
                         this.renderer.render(this.scene, this.camera);
                         this.animId = requestAnimationFrame(loop);
                     };
                     this.animId = requestAnimationFrame(loop);
                 });
+            },
+
+            // fake card shakes, glitches and burns out before the reversal clip
+            breakFake(g, playId) {
+                return new Promise(resolve => {
+                    cancelAnimationFrame(this.animId);
+                    const t0 = performance.now();
+                    const base = g.scale.x;
+                    const mats = [g.userData.front.material, g.userData.back.material, g.userData.glow.material];
+                    const flick = [80, 160, 210, 330, 380, 520, 560, 700];
+                    let fi = 0;
+                    const loop = now => {
+                        if (this.finished || this.playId !== playId) return;
+                        const el = now - t0;
+                        const k = Math.min(1, el / 1100);
+                        g.position.x = (Math.random() - 0.5) * 0.12 * k;
+                        g.position.y = (Math.random() - 0.5) * 0.08 * k;
+                        g.rotation.z = (Math.random() - 0.5) * 0.06 * k;
+                        if (fi < flick.length && el > flick[fi]) { this.flash(fi % 2 ? '#000' : '#fff7d6', 110, fi % 2 ? 0.9 : 0.5); fi++; }
+                        if (el > 800) {
+                            const f = Math.min(1, (el - 800) / 350);
+                            mats.forEach(m => { m.opacity = 1 - f; });
+                            g.scale.setScalar(base * (1 + f * 0.25));
+                        }
+                        this.renderer.render(this.scene, this.camera);
+                        if (el >= 1150) { this.disposeScene(); this.renderer.clear(); resolve(); return; }
+                        this.animId = requestAnimationFrame(loop);
+                    };
+                    this.animId = requestAnimationFrame(loop);
+                });
+            },
+
+            wait(ms) { return new Promise(r => setTimeout(r, ms)); },
+
+            async play(cards, callback) {
+                this.onDone = callback;
+                this.finished = false;
+                this.waitingTap = false;
+                const playId = this.playId = (this.playId || 0) + 1;
+                const modal = document.getElementById('cinema-modal');
+                const badge = document.getElementById('cinema-script-badge');
+                const title = document.getElementById('cinema-stage-title');
+                document.getElementById('cinema-reveal-box').classList.add('hidden');
+                const alive = () => this.playId === playId && !this.finished;
+
+                const bestCard = [...cards].sort((a, b) => b.pt - a.pt)[0];
+                const bestTier = resolveCardTier(bestCard);
+                // big prizes: 50% "something's off mid-opening", 50% "fake result → reversal"
+                const mode = bestTier <= 2 ? (Math.random() < 0.5 ? 'bigA' : 'rev') : 'intro';
+
+                badge.textContent = 'POKÉVAULT ORIPA';
+                title.textContent = cards.length > 1 ? `🎴 ${cards.length} 連抽開封中...` : '🎴 開封中...';
+                modal.classList.remove('hidden');
+                modal.onclick = () => { if (this.waitingTap) this.finish(); };
+                SoundEngine.playClick();
+                this.ensureRenderer(document.getElementById('cinema-canvas'), Math.max(300, window.innerWidth), Math.max(400, window.innerHeight));
+                this.renderer.clear();
+
+                if (mode === 'bigA') {
+                    setTimeout(() => { if (alive()) title.textContent = '……！？ 紙袋在發光！'; }, 1900);
+                    if (!await this.playClip('bigA', playId)) return;
+                } else {
+                    if (!await this.playClip('intro', playId)) return;
+                }
+
+                if (mode === 'rev') {
+                    // fake low-tier result first
+                    const lows = cards.filter(c => resolveCardTier(c) >= 4 && c !== bestCard);
+                    const fake = lows.length ? lows[Math.floor(Math.random() * lows.length)]
+                        : (Math.random() < 0.5 ? VERIFIED_CARDS.T5_EEVEE_C : VERIFIED_CARDS.T5_SQUIRTLE_C);
+                    title.textContent = '✨ 召喚完成';
+                    const g = await this.flipReveal(fake, 5, playId);
+                    if (!alive()) return;
+                    title.textContent = `✨ 召喚完成！獲得【${fake.rarity || 'C'}】`;
+                    await this.wait(1500);
+                    if (!alive()) return;
+                    title.textContent = '……等等？';
+                    await this.breakFake(g, playId);
+                    if (!alive()) return;
+                    title.textContent = '⚡ 逆轉！！';
+                    if (!await this.playClip('rev', playId)) return;
+                }
+
+                title.textContent = bestTier === 1 ? '🌈 虹光昇格！！傳說 1 等賞降臨！！'
+                    : (bestTier === 2 ? '✨ 金光爆發！！2 等大獎現身！！' : `✨ 召喚完成！最高獲得【${bestCard.rarity}】`);
+                await this.flipReveal(bestCard, bestTier, playId);
+                if (!alive()) return;
+                this.waitingTap = true;
+                title.textContent += '　👆 點擊畫面繼續';
+                setTimeout(() => { if (this.waitingTap && this.playId === playId) this.finish(); }, bestTier <= 2 ? 6000 : 3500);
             },
 
             skip() {
@@ -2238,6 +2352,11 @@
                 cancelAnimationFrame(this.animId);
                 this.animId = null;
                 this.disposeScene();
+                if (this.renderer) this.renderer.clear();
+                const v = document.getElementById('cinema-video');
+                try { v.pause(); } catch (e) {}
+                v.onended = v.onerror = null;
+                v.style.filter = '';
                 const modal = document.getElementById('cinema-modal');
                 modal.onclick = null;
                 modal.classList.add('hidden');
@@ -4135,6 +4254,7 @@
             try { PoolAISystem.init(); } catch (e) {}
             try { AuctionSystem.init(); } catch (e) {}
             try { AIChatTradeSystem.init(); } catch (e) {}
+            try { setTimeout(() => CinemaEngine.preloadVideos(), 1500); } catch (e) {}
         }
 
         if (document.readyState === 'loading') {
