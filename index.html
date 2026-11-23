@@ -146,6 +146,13 @@
                     const src = (imgEl.getAttribute('src') || '').trim();
                     const step = Number(imgEl.dataset.fallbackStep || '0');
 
+                    // 官方日版卡圖失敗時不替換成其他卡，直接顯示卡號標籤，避免出現錯誤卡圖
+                    if (src.includes('pokemon-card.com')) {
+                        imgEl.onerror = null;
+                        const lbl = (imgEl.dataset.cardCode || 'POKEMON TCG').slice(0, 18);
+                        imgEl.src = `https://placehold.co/300x420/111625/facc15?text=${encodeURIComponent(lbl)}`;
+                        return;
+                    }
                     if (step === 0) {
                         imgEl.dataset.fallbackStep = '1';
                         if (src.includes('_hires.png')) {
@@ -167,17 +174,6 @@
                         }
                     }
 
-                    if (step <= 2) {
-                        imgEl.dataset.fallbackStep = '3';
-                        const code = (imgEl.dataset.cardCode || imgEl.alt || 'PTCG').trim();
-                        let hash = 0;
-                        for (let i = 0; i < code.length; i++) hash = (hash * 31 + code.charCodeAt(i)) >>> 0;
-                        const fb = VERIFIED_PTCG_FALLBACKS[hash % VERIFIED_PTCG_FALLBACKS.length];
-                        if (fb !== src) {
-                            imgEl.src = fb;
-                            return;
-                        }
-                    }
 
                     imgEl.onerror = null;
                     const label = (imgEl.dataset.cardCode || 'POKEMON TCG').slice(0, 16);
@@ -1193,6 +1189,31 @@
             return `https://images.pokemontcg.io/${setCode}/${numStr}_hires.png`;
         }
 
+        /* 官方日版卡圖（pokemon-card.com 官方卡片資料庫）— 卡號與卡名一對一 */
+        const OFFICIAL_M6A = [[1, "050613_P_TAMATAMA", "タマタマ", "蛋蛋"], [2, "050614_P_ARORANASSHI", "アローラ ナッシー", "阿羅拉椰蛋樹"], [3, "050615_P_BARUBITO", "バルビート", "電螢蟲"], [4, "050616_P_IRUMIZE", "イルミーゼ", "甜甜螢"], [5, "050617_P_BIBIYON", "ビビヨン", "彩粉蝶"], [6, "050618_P_FUAIYA", "ファイヤー", "火焰鳥"], [7, "050619_P_HOUOU", "ホウオウ", "鳳王"], [8, "050620_P_RESHIRAMU", "レシラム", "萊希拉姆"], [9, "050621_P_HOGETAIEKKUSU", "ホゲータex", "呆火鱷 ex"], [10, "050622_P_YADON", "ヤドン", "呆呆獸"], [11, "050623_P_RAPURASU", "ラプラス", "拉普拉斯"], [12, "050624_P_FURIZA", "フリーザー", "急凍鳥"], [13, "050625_P_KAIOGA", "カイオーガ", "蓋歐卡"], [14, "050626_P_PARUKIA", "パルキア", "帕路奇亞"], [15, "050627_P_GEKKOUGAIEKKUSU", "ゲッコウガex", "甲賀忍蛙 ex"], [16, "050628_P_YOWASHI", "ヨワシ", "弱丁魚"], [17, "050629_P_PIKACHIXYUU", "ピカチュウ", "皮卡丘（30週年 01/30）"], [18, "050630_P_PIKACHIXYUU", "ピカチュウ", "皮卡丘（30週年 02/30）"], [19, "050631_P_PIKACHIXYUU", "ピカチュウ", "皮卡丘（30週年 03/30）"], [20, "050632_P_PIKACHIXYUU", "ピカチュウ", "皮卡丘（30週年 04/30）"], [21, "050633_P_PIKACHIXYUU", "ピカチュウ", "皮卡丘（30週年 05/30）"], [22, "050634_P_PIKACHIXYUU", "ピカチュウ", "皮卡丘（30週年 06/30）"], [23, "050635_P_PIKACHIXYUU", "ピカチュウ", "皮卡丘（30週年 07/30）"], [24, "050636_P_PIKACHIXYUU", "ピカチュウ", "皮卡丘（30週年 08/30）"], [25, "050637_P_PIKACHIXYUU", "ピカチュウ", "皮卡丘（30週年 09/30）"], [26, "050638_P_PIKACHIXYUU", "ピカチュウ", "皮卡丘（30週年 10/30）"], [27, "050639_P_PIKACHIXYUU", "ピカチュウ", "皮卡丘（30週年 11/30）"], [28, "050640_P_PIKACHIXYUU", "ピカチュウ", "皮卡丘（30週年 12/30）"], [29, "050641_P_PIKACHIXYUU", "ピカチュウ", "皮卡丘（30週年 13/30）"], [30, "050642_P_PIKACHIXYUU", "ピカチュウ", "皮卡丘（30週年 14/30）"], [31, "050643_P_PIKACHIXYUU", "ピカチュウ", "皮卡丘（30週年 15/30）"], [32, "050644_P_PIKACHIXYUU", "ピカチュウ", "皮卡丘（30週年 16/30）"], [33, "050645_P_PIKACHIXYUU", "ピカチュウ", "皮卡丘（30週年 17/30）"], [34, "050646_P_PIKACHIXYUU", "ピカチュウ", "皮卡丘（30週年 18/30）"], [35, "050647_P_PIKACHIXYUU", "ピカチュウ", "皮卡丘（30週年 19/30）"], [36, "050648_P_PIKACHIXYUU", "ピカチュウ", "皮卡丘（30週年 20/30）"], [37, "050649_P_PIKACHIXYUU", "ピカチュウ", "皮卡丘（30週年 21/30）"], [38, "050650_P_PIKACHIXYUU", "ピカチュウ", "皮卡丘（30週年 22/30）"], [39, "050651_P_PIKACHIXYUU", "ピカチュウ", "皮卡丘（30週年 23/30）"], [40, "050652_P_PIKACHIXYUU", "ピカチュウ", "皮卡丘（30週年 24/30）"], [41, "050653_P_PIKACHIXYUU", "ピカチュウ", "皮卡丘（30週年 25/30）"], [42, "050654_P_PIKACHIXYUU", "ピカチュウ", "皮卡丘（30週年 26/30）"], [43, "050655_P_PIKACHIXYUU", "ピカチュウ", "皮卡丘（30週年 27/30）"], [44, "050656_P_PIKACHIXYUU", "ピカチュウ", "皮卡丘（30週年 28/30）"], [45, "050657_P_PIKACHIXYUU", "ピカチュウ", "皮卡丘（30週年 29/30）"], [46, "050658_P_PIKACHIXYUU", "ピカチュウ", "皮卡丘（30週年 30/30）"], [47, "050659_P_PIKACHIXYUUIEKKUSU", "ピカチュウex", "皮卡丘 ex"], [48, "050660_P_PIKACHIXYUUIEKKUSU", "ピカチュウex", "皮卡丘 ex"], [49, "050661_P_SANDA", "サンダー", "閃電鳥"], [50, "050662_P_ZEKUROMU", "ゼクロム", "捷克羅姆"], [51, "050663_P_SUTORINDA", "ストリンダー", "顫弦蠑螈"], [52, "050664_P_MORUPEKO", "モルペコ", "莫魯貝可"], [53, "050665_P_MIRAIDON", "ミライドン", "密勒頓"], [54, "050666_P_MIXYUUTSU", "ミュウツー", "超夢"], [55, "050667_P_MIXYUUTSUIEKKUSU", "ミュウツーex", "超夢 ex"], [56, "050668_P_MIXYUU", "ミュウ", "夢幻"], [57, "050669_P_MIXYUUIEKKUSU", "ミュウex", "夢幻 ex"], [58, "050670_P_EFUI", "エーフィ", "太陽伊布"], [59, "050671_P_NINFUIAIEKKUSU", "ニンフィアex", "仙子伊布 ex"], [60, "050672_P_ANNON", "アンノーン", "未知圖騰"], [61, "050673_P_FUWANTE", "フワンテ", "飄飄球"], [62, "050674_P_SHIXYANDERA", "シャンデラ", "水晶燈火靈"], [63, "050675_P_ZERUNEASU", "ゼルネアス", "哲爾尼亞斯"], [64, "050676_P_KOSUMOGGU", "コスモッグ", "科斯莫古"], [65, "050677_P_KOSUMOUMU", "コスモウム", "科斯莫姆"], [66, "050678_P_RUNAARA", "ルナアーラ", "露奈雅拉"], [67, "050679_P_KOREKURE", "コレクレー", "索財靈"], [68, "050680_P_GURADON", "グラードン", "固拉多"], [69, "050681_P_RUKARIO", "ルカリオ", "路卡利歐"], [70, "050682_P_GAMAGEROGE", "ガマゲロゲ", "蟾蜍王"], [71, "050683_P_RUGARUGAN", "ルガルガン", "鬃岩狼人"], [72, "050684_P_KORAIDON", "コライドン", "故勒頓"], [73, "050685_P_NIDORAN", "ニドラン♀", "尼多蘭"], [74, "050686_P_NIDORINA", "ニドリーナ", "尼多娜"], [75, "050687_P_ARORANIXYASU", "アローラ ニャース", "阿羅拉喵喵"], [76, "050688_P_GENGAIEKKUSU", "ゲンガーex", "耿鬼 ex"], [77, "050689_P_BURAKKI", "ブラッキー", "月亮伊布"], [78, "050690_P_ZURUGGU", "ズルッグ", "滑滑小子"], [79, "050691_P_IBERUTARU", "イベルタル", "伊裴爾塔爾"], [80, "050692_P_GARARU", "ガラル ニャース", "伽勒爾喵喵"], [81, "050693_P_JIRACHIIEKKUSU", "ジラーチex", "基拉祈 ex"], [82, "050694_P_DEIARUGA", "ディアルガ", "帝牙盧卡"], [83, "050695_P_NATTOREI", "ナットレイ", "堅果啞鈴"], [84, "050696_P_SORUGAREO", "ソルガレオ", "索爾迦雷歐"], [85, "050697_P_ZASHIAN", "ザシアン", "蒼響"], [86, "050698_P_ZAMAZENTA", "ザマゼンタ", "藏瑪然特"], [87, "050699_P_SAFUGO", "サーフゴー", "賽富豪"], [88, "050700_P_BOMANDAIEKKUSU", "ボーマンダex", "暴飛龍 ex"], [89, "050701_P_JIXYARAKO", "ジャラコ", "心鱗寶"], [90, "050702_P_JIXYARANGO", "ジャランゴ", "鱗甲龍"], [91, "050703_P_JIXYARARANGA", "ジャラランガ", "杖尾鱗甲龍"], [92, "050704_P_NIXYASU", "ニャース", "喵喵"], [93, "050705_P_METAMON", "メタモン", "百變怪"], [94, "050706_P_IBUI", "イーブイ", "伊布"], [95, "050707_P_KABIGON", "カビゴン", "卡比獸"], [96, "050708_P_PUPURIN", "ププリン", "寶寶丁"], [97, "050709_P_RUGIA", "ルギア", "洛奇亞"], [98, "050710_P_HISUI", "ヒスイ ゾロア", "洗翠索羅亞"], [99, "050711_P_HISUI", "ヒスイ ゾロアーク", "洗翠索羅亞克"], [100, "050712_P_IKKANEZUMI", "イッカネズミ", "一家鼠"], [101, "050742_T_HAIPABORU", "ハイパーボール", "高級球"], [102, "050743_T_POKEPADDO", "ポケパッド", "寶可平板"], [103, "050744_T_POKEMONIREKAE", "ポケモンいれかえ", "寶可夢交替"], [104, "050934_P_ARORANASSHI", "アローラ ナッシー", "阿羅拉椰蛋樹", "AR"], [105, "050935_P_FUAIYA", "ファイヤー", "火焰鳥", "AR"], [106, "050936_P_RAPURASU", "ラプラス", "拉普拉斯", "AR"], [107, "050937_P_FURIZA", "フリーザー", "急凍鳥", "AR"], [108, "050938_P_SANDA", "サンダー", "閃電鳥", "AR"], [109, "050939_P_SUTORINDA", "ストリンダー", "顫弦蠑螈", "AR"], [110, "050940_P_MORUPEKO", "モルペコ", "莫魯貝可", "AR"], [111, "050941_P_FUWANTE", "フワンテ", "飄飄球", "AR"], [112, "050942_P_SHIXYANDERA", "シャンデラ", "水晶燈火靈", "AR"], [113, "050943_P_RUGARUGAN", "ルガルガン", "鬃岩狼人", "AR"], [114, "050944_P_NIDORINA", "ニドリーナ", "尼多娜", "AR"], [115, "050945_P_ARORANIXYASU", "アローラ ニャース", "阿羅拉喵喵", "AR"], [116, "050946_P_ZURUGGU", "ズルッグ", "滑滑小子", "AR"], [117, "050947_P_GARARU", "ガラル ニャース", "伽勒爾喵喵", "AR"], [118, "050948_P_SAFUGO", "サーフゴー", "賽富豪", "AR"], [119, "050949_P_JIXYARARANGA", "ジャラランガ", "杖尾鱗甲龍", "AR"], [120, "050950_P_NIXYASU", "ニャース", "喵喵", "AR"], [121, "050951_P_METAMON", "メタモン", "百變怪", "AR"], [122, "050952_P_HISUI", "ヒスイ ゾロア", "洗翠索羅亞", "AR"], [123, "050953_P_IKKANEZUMI", "イッカネズミ", "一家鼠", "AR"], [124, "050954_P_HOGETAIEKKUSU", "ホゲータex", "呆火鱷 ex", "SAR"], [125, "050955_P_GEKKOUGAIEKKUSU", "ゲッコウガex", "甲賀忍蛙 ex", "SAR"], [126, "050956_P_PIKACHIXYUUIEKKUSU", "ピカチュウex", "皮卡丘 ex（白天）", "SAR"], [127, "050957_P_PIKACHIXYUUIEKKUSU", "ピカチュウex", "皮卡丘 ex（夜晚）", "SAR"], [128, "050958_P_MIXYUUTSUIEKKUSU", "ミュウツーex", "超夢 ex", "SAR"], [129, "050959_P_MIXYUUIEKKUSU", "ミュウex", "夢幻 ex", "SAR"], [130, "050960_P_NINFUIAIEKKUSU", "ニンフィアex", "仙子伊布 ex", "SAR"], [131, "050961_P_GENGAIEKKUSU", "ゲンガーex", "耿鬼 ex", "SAR"], [132, "050962_P_JIRACHIIEKKUSU", "ジラーチex", "基拉祈 ex", "SAR"], [133, "050963_P_BOMANDAIEKKUSU", "ボーマンダex", "暴飛龍 ex", "SAR"], [134, "050964_P_MIXYUUTSUIEKKUSU", "ミュウツーex", "超夢 ex", "FUR"], [135, "050965_P_MIXYUUIEKKUSU", "ミュウex", "夢幻 ex", "FUR"], [136, "050713_P_PIKACHIXYUU", "ピカチュウ", "皮卡丘", "CLASSIC"], [137, "050714_P_RIZADON", "リザードン", "噴火龍", "CLASSIC"], [138, "050715_T_KASUMI", "カスミ", "小霞", "CLASSIC"], [139, "050716_P_ERIKANOPURIN", "エリカのプリン", "莉佳的胖丁", "CLASSIC"], [140, "050717_P_NIXYURA", "ニューラ", "狃拉", "CLASSIC"], [141, "050718_P_HIKARUSEREBII", "ひかるセレビィ", "閃耀的時拉比", "CLASSIC"], [142, "050719_P_RUGIA", "ルギア", "洛奇亞", "CLASSIC"], [143, "050720_P_ENEKORORO", "エネコロロ", "向尾喵", "CLASSIC"], [144, "050721_P_WARUIBANGIRASU", "わるいバンギラス", "邪惡的班基拉斯", "CLASSIC"], [145, "050722_P_HASSAMUIEKKUSU", "ハッサムex", "巨鉗螳螂 ex", "CLASSIC"], [146, "050723_P_METAGUROSU", "メタグロス", "巨金怪 δ", "CLASSIC"], [147, "050724_P_PARUKIA", "パルキア LV.X", "帕路奇亞 LV.X", "CLASSIC"], [148, "050725_P_YUKUSHI", "ユクシー", "由克希", "CLASSIC"], [149, "050726_P_KUROBATTOGINGA", "クロバットG", "叉字蝠 G", "CLASSIC"], [150, "050727_P_GENGA", "ゲンガー", "耿鬼（Prime）", "CLASSIC"], [151, "050728_P_DAKURAIANDOKURESERIAREJIENDO", "ダークライ＆クレセリアLEGEND", "達克萊伊＆克雷色利亞 LEGEND", "CLASSIC"], [152, "050728_P_DAKURAIANDOKURESERIAREJIENDO", "ダークライ＆クレセリアLEGEND", "達克萊伊＆克雷色利亞 LEGEND（下半）", "CLASSIC"], [153, "050729_T_ENU", "N", "N", "CLASSIC"], [154, "050730_P_REKKUUZAIEKKUSU", "レックウザEX", "烈空坐 EX", "CLASSIC"], [155, "050731_P_GENOSEKUTOIEKKUSU", "ゲノセクトEX", "蓋諾賽克特 EX", "CLASSIC"], [156, "050732_P_MSANAITOIEKKUSU", "MサーナイトEX", "超級沙奈朵 EX", "CLASSIC"], [157, "050733_P_GEKKOUGABUREIKU", "ゲッコウガBREAK", "甲賀忍蛙 BREAK", "CLASSIC", "legend"], [158, "050734_P_SORUGAREOJIEKKUSU", "ソルガレオGX", "索爾迦雷歐 GX", "CLASSIC"], [159, "050735_P_MASSHIBUNJIEKKUSU", "マッシブーンGX", "爆肌蚊 GX", "CLASSIC"], [160, "050736_P_PIKACHIXYUUANDOZEKUROMUJIEKKUSU", "ピカチュウ&ゼクロムGX", "皮卡丘&捷克羅姆 GX", "CLASSIC"], [161, "050737_P_ZASHIANBUI", "ザシアンV", "蒼響 V", "CLASSIC"], [162, "050738_P_RAIKOU", "ライコウ", "雷公", "CLASSIC"], [163, "050739_P_MIXYUUBUIMAKKUSU", "ミュウVMAX", "夢幻 VMAX", "CLASSIC"], [164, "050740_P_ARUSEUSUBUISUTA", "アルセウスVSTAR", "阿爾宙斯 VSTAR", "CLASSIC"], [165, "050741_P_KOIKINGU", "コイキング", "鯉魚王", "CLASSIC"]];
+        const OFFICIAL_SV2A_FILES = ["043322_P_FUSHIGIDANE", "043323_P_FUSHIGISOU", "043324_P_FUSHIGIBANAEX", "043325_P_HITOKAGE", "043326_P_RIZADO", "043327_P_RIZADONEX", "043328_P_ZENIGAME", "043329_P_KAMERU", "043330_P_KAMEKKUSUEX", "043331_P_KIXYATAPI", "043332_P_TORANSERU", "043333_P_BATAFURI", "043334_P_BIDORU", "043335_P_KOKUN", "043336_P_SUPIA", "043337_P_POPPO", "043338_P_PIJIXYON", "043339_P_PIJIXYOTTO", "043340_P_KORATTA", "043341_P_RATTA", "043342_P_ONISUZUME", "043343_P_ONIDORIRU", "043344_P_ABO", "043345_P_ABOKKUEX", "043346_P_PIKACHIXYUU", "043347_P_RAICHIXYUU", "043348_P_SANDO", "043349_P_SANDOPAN", "043350_P_NIDORAN", "043351_P_NIDORINA", "043352_P_NIDOKUIN", "043353_P_NIDORAN", "043354_P_NIDORINO", "043355_P_NIDOKINGU", "043356_P_PIPPI", "043357_P_PIKUSHI", "043358_P_ROKON", "043359_P_KIXYUUKONEX", "043360_P_PURIN", "043361_P_PUKURINEX", "043362_P_ZUBATTO", "043363_P_GORUBATTO", "043364_P_NAZONOKUSA", "043365_P_KUSAIHANA", "043366_P_RAFURESHIA", "043367_P_PARASU", "043368_P_PARASEKUTO", "043369_P_KONPAN", "043370_P_MORUFUON", "043371_P_DEIGUDA", "043372_P_DAGUTORIO", "043373_P_NIXYASU", "043374_P_PERUSHIAN", "043375_P_KODAKKU", "043376_P_GORUDAKKU", "043377_P_MANKI", "043378_P_OKORIZARU", "043379_P_GADEI", "043380_P_UINDEI", "043381_P_NIXYOROMO", "043382_P_NIXYOROZO", "043383_P_NIXYOROBON", "043384_P_KESHII", "043385_P_YUNGERA", "043386_P_FUDEINEX", "043387_P_WANRIKI", "043388_P_GORIKI", "043389_P_KAIRIKI", "043390_P_MADATSUBOMI", "043391_P_UTSUDON", "043392_P_UTSUBOTTO", "043393_P_MENOKURAGE", "043394_P_DOKUKURAGE", "043395_P_ISHITSUBUTE", "043396_P_GORON", "043397_P_GORONIXYAEX", "043398_P_PONITA", "043399_P_GIXYAROPPU", "043400_P_YADON", "043401_P_YADORAN", "043402_P_KOIRU", "043403_P_REAKOIRU", "043404_P_KAMONEGI", "043405_P_DODO", "043406_P_DODORIO", "043407_P_PAUWAU", "043408_P_JIXYUGON", "043409_P_BETOBETA", "043410_P_BETOBETON", "043411_P_SHIERUDA", "043412_P_PARUSHIEN", "043413_P_GOSU", "043414_P_GOSUTO", "043415_P_GENGA", "043416_P_IWAKU", "043417_P_SURIPU", "043418_P_SURIPA", "043419_P_KURABU", "043420_P_KINGURA", "043421_P_BIRIRIDAMA", "043422_P_MARUMAIN", "043423_P_TAMATAMA", "043424_P_NASSHI", "043425_P_KARAKARA", "043426_P_GARAGARA", "043427_P_SAWAMURA", "043428_P_EBIWARA", "043429_P_BERORINGA", "043430_P_DOGASU", "043431_P_MATADOGASU", "043432_P_SAIHON", "043433_P_SAIDON", "043434_P_RAKKI", "043435_P_MONJIXYARA", "043436_P_GARURAEX", "043437_P_TATTSU", "043438_P_SHIDORA", "043439_P_TOSAKINTO", "043440_P_AZUMAOU", "043441_P_HITODEMAN", "043442_P_SUTAMI", "043443_P_BARIYADO", "043444_P_SUTORAIKU", "043445_P_RUJIXYURAEX", "043446_P_EREBU", "043447_P_BUBA", "043448_P_KAIROSU", "043449_P_KENTAROSU", "043450_P_KOIKINGU", "043451_P_GIXYARADOSU", "043452_P_RAPURASU", "043453_P_METAMON", "043454_P_IBUI", "043455_P_SHIXYAWAZU", "043456_P_SANDASU", "043457_P_BUSUTA", "043458_P_PORIGON", "043459_P_OMUNAITO", "043460_P_OMUSUTA", "043461_P_KABUTO", "043462_P_KABUTOPUSU", "043463_P_PUTERA", "043464_P_KABIGON", "043465_P_FURIZA", "043466_P_SANDAEX", "043467_P_FUAIYA", "043468_P_MINIRIXYUU", "043469_P_HAKURIXYU", "043470_P_KAIRIXYU", "043471_P_MIXYUUTSU", "043472_P_MIXYUUEX", "043473_T_ENERUGISHIRU", "043474_T_SUNATCHIAMU", "043475_T_FURUBITAKAINOKASEKI", "043476_T_KOBITAKOURANOKASEKI", "043477_T_KOBITAHIMITSUNOKOHAKU", "043478_T_ANZENGOGURU", "043479_T_OOKINAFUUSEN", "043480_T_GACHIGACHIBANDO", "043481_T_TABENOKOSHI", "043482_T_ERIKANOSHIXYOUTAI", "043483_T_SAKAKINOKARISUMA", "043484_T_NANAMINOTEDASUKE", "043485_T_MASAKINOTENSOU", "043486_T_SAIKURINGURODO", "043951_P_FUSHIGIDANE", "043952_P_FUSHIGISOU", "043953_P_HITOKAGE", "043954_P_RIZADO", "043955_P_ZENIGAME", "043956_P_KAMERU", "043957_P_KIXYATAPI", "043958_P_PIKACHIXYUU", "043959_P_NIDOKINGU", "043960_P_KODAKKU", "043961_P_NIXYOROZO", "043962_P_GORIKI", "043963_P_MONJIXYARA", "043964_P_BARIYADO", "043965_P_OMUNAITO", "043966_P_KABIGON", "043967_P_HAKURIXYU", "043968_P_MIXYUUTSU", "043969_P_FUSHIGIBANAEX", "043970_P_RIZADONEX", "043971_P_KAMEKKUSUEX", "043972_P_ABOKKUEX", "043973_P_KIXYUUKONEX", "043974_P_PUKURINEX", "043975_P_FUDEINEX", "043976_P_GORONIXYAEX", "043977_P_GARURAEX", "043978_P_RUJIXYURAEX", "043979_P_SANDAEX", "043980_P_MIXYUUEX", "043981_T_ERIKANOSHIXYOUTAI", "043982_T_SAKAKINOKARISUMA", "043983_T_NANAMINOTEDASUKE", "043984_T_MASAKINOTENSOU", "043985_P_FUSHIGIBANAEX", "043986_P_RIZADONEX", "043987_P_KAMEKKUSUEX", "043988_P_FUDEINEX", "043989_P_SANDAEX", "043990_P_MIXYUUEX", "043991_T_ERIKANOSHIXYOUTAI", "043992_T_SAKAKINOKARISUMA", "044960_P_MIXYUUEX", "044961_T_POKEMONIREKAE", "044962_E_KIHONCHIXYOUENERUGI"];
+
+        function ocImg(setCode, file, folder) {
+            return `https://www.pokemon-card.com/assets/images/card_images/${folder || 'large'}/${setCode}/${file}.jpg`;
+        }
+        const M6A_PT = { FUR: 98000, SAR: 16000, AR: 2600, CLASSIC: 1800, RR: 650, R: 220, C: 90 };
+        const M6A_SAR_PT = { 124: 4200, 125: 9800, 126: 42000, 127: 42000, 128: 22000, 129: 26000, 130: 15800, 131: 13500, 132: 8800, 133: 7600 };
+        function m6aCard(num, extra) {
+            const row = OFFICIAL_M6A.find(r => r[0] === num);
+            const [n, file, jp, zh, rar, folder] = row;
+            const rarity = rar || (/ex$/.test(jp) ? 'RR' : (n >= 17 && n <= 46 ? 'R' : 'C'));
+            const pad = String(n).padStart(3, '0');
+            const pt = rarity === 'SAR' ? M6A_SAR_PT[n] : (n === 135 ? 128000 : M6A_PT[rarity]);
+            return Object.assign({
+                id: `M6A_${pad}`,
+                name: `【30週年 M6a】${zh} ${rarity === 'CLASSIC' ? '經典收藏' : rarity}`,
+                code: `M6a ${pad}/103`, rarity, pt, jpName: jp,
+                img: ocImg('M6a', file, folder), ptcgSet: '', ptcgNum: ''
+            }, extra || {});
+        }
+        const SV2A_ZH = {"1": "妙蛙種子", "2": "妙蛙草", "3": "妙蛙花 ex", "4": "小火龍", "5": "火恐龍", "6": "噴火龍 ex", "7": "傑尼龜", "8": "卡咪龜", "9": "水箭龜 ex", "10": "綠毛蟲", "11": "鐵甲蛹", "12": "巴大蝶", "13": "獨角蟲", "14": "鐵殼蛹", "15": "大針蜂", "16": "波波", "17": "比比鳥", "18": "大比鳥", "19": "小拉達", "20": "拉達", "21": "烈雀", "22": "大嘴雀", "23": "阿柏蛇", "24": "阿柏怪 ex", "25": "皮卡丘", "26": "雷丘", "27": "穿山鼠", "28": "穿山王", "29": "尼多蘭", "30": "尼多娜", "31": "尼多后", "32": "尼多朗", "33": "尼多力諾", "34": "尼多王", "35": "皮皮", "36": "皮可西", "37": "六尾", "38": "九尾 ex", "39": "胖丁", "40": "胖可丁 ex", "41": "超音蝠", "42": "大嘴蝠", "43": "走路草", "44": "臭臭花", "45": "霸王花", "46": "派拉斯", "47": "派拉斯特", "48": "毛球", "49": "摩魯蛾", "50": "地鼠", "51": "三地鼠", "52": "喵喵", "53": "貓老大", "54": "可達鴨", "55": "哥達鴨", "56": "猴怪", "57": "火爆猴", "58": "卡蒂狗", "59": "風速狗", "60": "蚊香蝌蚪", "61": "蚊香君", "62": "蚊香泳士", "63": "凱西", "64": "勇基拉", "65": "胡地 ex", "66": "腕力", "67": "豪力", "68": "怪力", "69": "喇叭芽", "70": "口呆花", "71": "大食花", "72": "瑪瑙水母", "73": "毒刺水母", "74": "小拳石", "75": "隆隆石", "76": "隆隆岩 ex", "77": "小火馬", "78": "烈焰馬", "79": "呆呆獸", "80": "呆殼獸", "81": "小磁怪", "82": "三合一磁怪", "83": "大蔥鴨", "84": "嘟嘟", "85": "嘟嘟利", "86": "小海獅", "87": "白海獅", "88": "臭泥", "89": "臭臭泥", "90": "大舌貝", "91": "刺甲貝", "92": "鬼斯", "93": "鬼斯通", "94": "耿鬼", "95": "大岩蛇", "96": "催眠貘", "97": "引夢貘人", "98": "大鉗蟹", "99": "巨鉗蟹", "100": "霹靂電球", "101": "頑皮雷彈", "102": "蛋蛋", "103": "椰蛋樹", "104": "卡拉卡拉", "105": "嘎啦嘎啦", "106": "飛腿郎", "107": "快拳郎", "108": "大舌頭", "109": "瓦斯彈", "110": "雙彈瓦斯", "111": "獨角犀牛", "112": "鑽角犀獸", "113": "吉利蛋", "114": "蔓藤怪", "115": "袋獸 ex", "116": "墨海馬", "117": "海刺龍", "118": "角金魚", "119": "金魚王", "120": "海星星", "121": "寶石海星", "122": "魔牆人偶", "123": "飛天螳螂", "124": "迷唇姐 ex", "125": "電擊獸", "126": "鴨嘴火獸", "127": "凱羅斯", "128": "肯泰羅", "129": "鯉魚王", "130": "暴鯉龍", "131": "拉普拉斯", "132": "百變怪", "133": "伊布", "134": "水伊布", "135": "雷伊布", "136": "火伊布", "137": "多邊獸", "138": "菊石獸", "139": "多刺菊石獸", "140": "化石盔", "141": "鐮刀盔", "142": "化石翼龍", "143": "卡比獸", "144": "急凍鳥", "145": "閃電鳥 ex", "146": "火焰鳥", "147": "迷你龍", "148": "哈克龍", "149": "快龍", "150": "超夢", "151": "夢幻 ex", "152": "能量貼紙", "153": "強力手臂", "154": "古老的貝殼化石", "155": "古老的甲殼化石", "156": "古老的秘密琥珀", "157": "防塵護目鏡", "158": "大氣球", "159": "堅硬束帶", "160": "吃剩的東西", "161": "莉佳的招待", "162": "坂木的領袖魅力", "163": "小茂姊姊的幫忙", "164": "正輝的傳送", "165": "自行車道", "166": "妙蛙種子", "167": "妙蛙草", "168": "小火龍", "169": "火恐龍", "170": "傑尼龜", "171": "卡咪龜", "172": "綠毛蟲", "173": "皮卡丘", "174": "尼多王", "175": "可達鴨", "176": "蚊香君", "177": "豪力", "178": "蔓藤怪", "179": "魔牆人偶", "180": "菊石獸", "181": "卡比獸", "182": "哈克龍", "183": "超夢", "184": "妙蛙花 ex", "185": "噴火龍 ex", "186": "水箭龜 ex", "187": "阿柏怪 ex", "188": "九尾 ex", "189": "胖可丁 ex", "190": "胡地 ex", "191": "隆隆岩 ex", "192": "袋獸 ex", "193": "迷唇姐 ex", "194": "閃電鳥 ex", "195": "夢幻 ex", "196": "莉佳的招待", "197": "坂木的領袖魅力", "198": "小茂姊姊的幫忙", "199": "正輝的傳送", "200": "妙蛙花 ex", "201": "噴火龍 ex", "202": "水箭龜 ex", "203": "胡地 ex", "204": "閃電鳥 ex", "205": "夢幻 ex", "206": "莉佳的招待", "207": "坂木的領袖魅力", "208": "夢幻 ex", "209": "寶可夢交替", "210": "基本超能量"};
+        function sv2aImg(num) { return ocImg('SV2a', OFFICIAL_SV2A_FILES[num - 1]); }
+
         const VERIFIED_CARDS = {
             // 1 等傳說神卡 (RGB / MUR / BWR / PROMO)
             M6A_MEW_RGB: { id: 'M6A_MEW_RGB', name: '【PSA 10】【30週年 M6a】夢幻 ex RGB 緋紅全圖', code: 'M6a 135/103', rarity: 'RGB', pt: 185000, img: tcImg('sv4pt5', '232'), ptcgSet: 'sv4pt5', ptcgNum: '232' },
@@ -1265,6 +1286,39 @@
             T5_FLAREON_R: { id: 'T5_FLAREON_R', name: '【SV2a 151】火伊布 噴射火焰閃卡', code: 'SV2a 136/165', rarity: 'R', pt: 190, img: tcImg('sv3pt5', '136'), ptcgSet: 'sv3pt5', ptcgNum: '136' }
         };
 
+
+        /* ── 卡圖校正：卡名、卡號與卡圖一對一 ── */
+        (function correctVerifiedCards() {
+            // 30週年 M6a：改用官方實際存在的卡（舊版的「夢幻 RGB」並不存在）
+            VERIFIED_CARDS.M6A_MEW_RGB = m6aCard(135, { id: 'M6A_MEW_RGB', name: '【PSA 10】【30週年 M6a】夢幻 ex FUR', pt: 185000 });
+            VERIFIED_CARDS.M6A_MEW_FUR = m6aCard(134, { id: 'M6A_MEW_FUR', name: '【PSA 10】【30週年 M6a】超夢 ex FUR', pt: 68000 });
+            VERIFIED_CARDS.M6A_LUGIA_30TH = m6aCard(142, { id: 'M6A_LUGIA_30TH', name: '【30週年 M6a】洛奇亞 經典收藏', pt: 15800 });
+            // SV2a 151：全部改用官方日版卡圖（依日版卡號）
+            Object.values(VERIFIED_CARDS).forEach(c => {
+                const m = /^SV2a (\d{3})\/165$/.exec(c.code || '');
+                if (m) { c.img = sv2aImg(Number(m[1])); c.ptcgSet = ''; c.ptcgNum = ''; }
+            });
+            VERIFIED_CARDS.T4_DRAGONAIR_AR.code = 'SV2a 182/165';
+            VERIFIED_CARDS.T4_DRAGONAIR_AR.img = sv2aImg(182);
+            VERIFIED_CARDS.T3_MEW_151_SAR.rarity = 'SAR';
+            ['T3_ZAPDOS_151_SAR', 'T3_ALAKAZAM_151_SAR', 'T3_ERIKA_151_SAR'].forEach(k => VERIFIED_CARDS[k].rarity = 'SAR');
+            // 其他系列：保留與卡名相符的官方英文版掃描，卡號改成該張卡的實際編號
+            const setCode = (k, code) => { VERIFIED_CARDS[k].code = code; };
+            setCode('TERA_PIKA_UR', 'SSP 247/191'); setCode('TERA_PIKA_SAR', 'SSP 238/191');
+            setCode('VANGOGH_PIKA', 'SVP 085'); setCode('RAYQUAZA_VMAX_SA', 'EVS 218/203'); setCode('UMBREON_VMAX_SA', 'EVS 215/203');
+            setCode('GIRATINA_V_SA', 'LOR 186/196'); setCode('LUGIA_V_SA', 'SIT 186/195');
+            setCode('SV85_UMBREON_SAR', 'PRE 161/131'); setCode('IONO_CLAY_SAR', 'PAL 269/193');
+            setCode('SV9_CLEFAIRY_SAR', 'JTG 184/159'); setCode('SV9_ZOROARK_SAR', 'JTG 185/159');
+            setCode('ARCEUS_VSTAR_UR', 'CRZ GG70/GG70'); setCode('T3_MEWTWO_VSTAR', 'CRZ GG44/GG70');
+            setCode('T3_IONO_SR', 'PAL 254/193');
+            Object.assign(VERIFIED_CARDS.T3_MAGIKARP_AR, { code: 'PAL 203/193', name: '【朱紫】鯉魚王 AR 插畫稀有' });
+            // 舊版卡圖連到錯誤的卡 → 換成正確卡圖
+            Object.assign(VERIFIED_CARDS.SV10_MEWTWO_SAR, { name: '【PSA 10】【火箭隊的榮耀】火箭隊的超夢 ex SAR', code: 'DRI 231/182', img: tcImg('sv10', '231'), ptcgSet: 'sv10', ptcgNum: '231' });
+            Object.assign(VERIFIED_CARDS.G25_PIKA_V, { name: '【PSA 10】【30週年 M6a】皮卡丘&捷克羅姆 GX 經典收藏', code: 'M6a 160/103', rarity: 'MUR', img: m6aCard(160).img, ptcgSet: '', ptcgNum: '' });
+            Object.assign(VERIFIED_CARDS.G25_POKEBALL, { name: '【PSA 10】【30週年 M6a】夢幻 VMAX 經典收藏', code: 'M6a 163/103', rarity: 'UR', img: m6aCard(163).img, ptcgSet: '', ptcgNum: '' });
+            Object.assign(VERIFIED_CARDS.T3_PIKA_VMAX_CSR, { name: '【30週年 M6a】皮卡丘 ex SAR（夜晚）', code: 'M6a 127/103', rarity: 'SAR', img: m6aCard(127).img, ptcgSet: '', ptcgNum: '' });
+        })();
+
         /* ==========================================================================
            第 5 節：15 大線上一番賞卡池設定（每池 50 種正版卡・極稀有高賞・無整數賞）
            ========================================================================== */
@@ -1292,7 +1346,7 @@
                 id: 'pool-12k-heaven-hell',
                 tag: 'MICRO',
                 badge: '⚡ 12,000 PT 天堂與地獄 1/2 (50種)',
-                title: '【12,000 PT 天堂或地獄 1/2】1% 20,000 PT / 19% 12,000 PT / 30% 10,000 PT / 50% 保底 6,000 PT',
+                title: '【12,000 PT 天堂或地獄】0.5% 20,000 PT / 9.5% 12,000 PT / 30% 10,000 PT / 60% 保底 6,000 PT',
                 price: 12000,
                 totalTickets: 1000,
                 isExactCustomOdds: true,
@@ -1478,7 +1532,7 @@
                 id: 'pool-100k-heaven-hell',
                 tag: 'MICRO',
                 badge: '👑 100,000 PT 終極 1/2 決戰 (50種)',
-                title: '【100,000 PT 終極天堂地獄 1/2】50% 轟出 15萬～22萬傳說神卡 vs 50% 回血卡',
+                title: '【100,000 PT 終極天堂地獄】4% 傳說神卡 / 16% 頂級大獎 / 80% 回血卡',
                 price: 100000,
                 totalTickets: 100,
                 isExactCustomOdds: true,
@@ -1527,18 +1581,34 @@
                 const pad3 = String(num).padStart(3, '0');
                 return {
                     id: `SV2A_BASE_${pad3}`,
-                    name: `【SV2a 151】${pokeName} 紀念卡`,
+                    name: `【SV2a 151】${pokeName}`,
                     code: `SV2a ${pad3}/165`,
                     rarity: num % 4 === 0 ? 'R' : 'C',
                     pt: 90 + (num % 7) * 20,
-                    img: tcImg('sv3pt5', String(num)),
-                    ptcgSet: 'sv3pt5',
-                    ptcgNum: String(num)
+                    img: sv2aImg(num),
+                    ptcgSet: '',
+                    ptcgNum: ''
                 };
             });
 
             POOL_CONFIGS.forEach(pool => {
                 const usedIds = new Set(pool.prizes.map(p => p.card.id));
+
+                // 0. 30週年 M6a 池：只收錄 M6a 官方卡（50 種）
+                if (pool.id === 'pool-30th-m6a') {
+                    const P = [];
+                    P.push({ card: VERIFIED_CARDS.M6A_MEW_RGB, tier: 1, count: 1 });
+                    P.push({ card: VERIFIED_CARDS.M6A_MEW_FUR, tier: 2, count: 1 });
+                    [126, 127].forEach(n => P.push({ card: m6aCard(n), tier: 2, count: 1 }));
+                    [128, 129, 130, 131].forEach(n => P.push({ card: m6aCard(n), tier: 3, count: 2 }));
+                    [125, 132, 133, 124, 137, 142, 154, 160].forEach(n => P.push({ card: m6aCard(n), tier: 3, count: 3 }));
+                    [104, 105, 106, 107, 108, 111, 112, 118, 119, 121, 122, 136, 141, 163].forEach(n => P.push({ card: m6aCard(n), tier: 4, count: 30 }));
+                    [57, 55, 47, 48, 59, 76, 81, 88, 15, 9, 17, 29, 54, 56, 58, 77, 94, 97, 95, 93, 7, 8].forEach(n => P.push({ card: m6aCard(n), tier: 5, count: 4400 }));
+                    pool.prizes = P;
+                    pool.title = '【30週年 M6a】夢幻 ex FUR ＆ 超夢 ex FUR・30th CELEBRATION 全收錄';
+                    pool.totalTickets = P.reduce((a, p) => a + p.count, 0);
+                    return;
+                }
 
                 // 1. 12,000 PT 天堂或地獄 1/2 池：嚴格維持 1% / 19% / 30% / 50% 總機率並擴充至 50 種不同卡牌
                 if (pool.id === 'pool-12k-heaven-hell') {
@@ -1548,12 +1618,12 @@
                     const p5 = pool.prizes[3];
                     const expanded = [];
                     // 1等賞共 10 口 (1%) -> 2 種各 5 口
-                    expanded.push({ card: { ...p1.card, pt: 20000 }, tier: 1, count: 5 });
-                    expanded.push({ card: { ...VERIFIED_CARDS.TERA_PIKA_UR, name: '【1等賞 1%】太晶黃金皮卡丘 ex UR', pt: 20000 }, tier: 1, count: 5 });
+                    expanded.push({ card: { ...p1.card, name: '【1等賞 0.5%】夢幻 ex FUR', pt: 20000 }, tier: 1, count: 3 });
+                    expanded.push({ card: { ...VERIFIED_CARDS.TERA_PIKA_UR, name: '【1等賞 0.5%】太晶黃金皮卡丘 ex UR', pt: 20000 }, tier: 1, count: 2 });
                     // 2等賞共 190 口 (19%) -> 8 種合計 190 口
                     const t2List = [p2.card, VERIFIED_CARDS.M6A_MEW_FUR, VERIFIED_CARDS.SV85_UMBREON_SAR, VERIFIED_CARDS.ZARD_151_SAR, VERIFIED_CARDS.BLASTOISE_151_SAR, VERIFIED_CARDS.VENUSAUR_151_SAR, VERIFIED_CARDS.SV9_CLEFAIRY_SAR, VERIFIED_CARDS.SV9_ZOROARK_SAR];
-                    const t2Counts = [25, 25, 24, 24, 23, 23, 23, 23];
-                    t2List.forEach((c, i) => expanded.push({ card: { ...c, name: `【2等賞 19%】${c.name.replace(/^【[^】]+】/, '')}`, pt: 12000 }, tier: 2, count: t2Counts[i] }));
+                    const t2Counts = [12, 12, 12, 12, 12, 12, 11, 12];
+                    t2List.forEach((c, i) => expanded.push({ card: { ...c, name: `【2等賞 9.5%】${c.name.replace(/^【[^】]+】/, '')}`, pt: 12000 }, tier: 2, count: t2Counts[i] }));
                     // 3等賞共 300 口 (30%) -> 12 種各 25 口
                     const t3List = [...tier3Bank, ...tier4Bank.slice(0, 4)];
                     t3List.forEach(c => expanded.push({ card: { ...c, name: `【3等賞 30%】${c.name.replace(/^【[^】]+】/, '')}`, pt: 10000 }, tier: 3, count: 25 }));
@@ -1561,7 +1631,7 @@
                     const t5List = [p5.card, ...tier4Bank.slice(4), ...tier5Bank, ...generated5Bank.slice(0, 5)];
                     for (let i = 0; i < 28; i++) {
                         const baseC = t5List[i % t5List.length];
-                        const cnt = i < 24 ? 18 : 17;
+                        const cnt = i < 12 ? 22 : 21;
                         expanded.push({ card: { ...baseC, name: `【保底 6,000 PT】${baseC.name.replace(/^【[^】]+】/, '')}`, pt: 6000 }, tier: 5, count: cnt });
                     }
                     pool.prizes = expanded;
@@ -1572,15 +1642,15 @@
                 // 2. 100,000 PT 終極 1/2 決戰池擴充至 50 種
                 if (pool.id === 'pool-100k-heaven-hell') {
                     const expanded = [
-                        { card: VERIFIED_CARDS.UMBREON_VMAX_SA, tier: 1, count: 5 },
-                        { card: VERIFIED_CARDS.BASE_ZARD_1999, tier: 1, count: 5 }
+                        { card: VERIFIED_CARDS.UMBREON_VMAX_SA, tier: 1, count: 2 },
+                        { card: VERIFIED_CARDS.BASE_ZARD_1999, tier: 1, count: 2 }
                     ];
                     const t2Pool = [VERIFIED_CARDS.M6A_MEW_RGB, VERIFIED_CARDS.RAYQUAZA_VMAX_SA, VERIFIED_CARDS.TERA_PIKA_UR, VERIFIED_CARDS.VANGOGH_PIKA, VERIFIED_CARDS.GIRATINA_V_SA, VERIFIED_CARDS.LUGIA_V_SA, VERIFIED_CARDS.SV10_MEWTWO_SAR, VERIFIED_CARDS.G25_PIKA_V];
-                    t2Pool.forEach(c => expanded.push({ card: c, tier: 2, count: 5 }));
+                    t2Pool.forEach(c => expanded.push({ card: c, tier: 2, count: 2 }));
                     const t5Pool = [...tier3Bank, ...tier4Bank, ...tier5Bank, ...generated5Bank];
                     for (let i = 0; i < 40; i++) {
                         const c = t5Pool[i % t5Pool.length];
-                        const cnt = i < 10 ? 2 : 1;
+                        const cnt = 2;
                         expanded.push({ card: { ...c, name: `【回血保底賞】${c.name.replace(/^【[^】]+】/, '')}`, pt: 48000 }, tier: 5, count: cnt });
                     }
                     pool.prizes = expanded;
@@ -1601,7 +1671,7 @@
                         pool.prizes.push({
                             card: { ...cand, name: `【保底 ${floorPt} PT】${cand.name.replace(/^【[^】]+】/, '')}`, pt: floorPt },
                             tier: isT4 ? 4 : 5,
-                            count: isT4 ? 15 : 1380
+                            count: isT4 ? 10 : 2800
                         });
                     }
                     pool.totalTickets = pool.prizes.reduce((s, p) => s + p.count, 0);
@@ -1612,13 +1682,13 @@
                 tier3Bank.slice(0, 6).forEach(c => {
                     if (!usedIds.has(c.id) && pool.prizes.length < 50) {
                         usedIds.add(c.id);
-                        pool.prizes.push({ card: c, tier: 3, count: 2 });
+                        pool.prizes.push({ card: c, tier: 3, count: 1 });
                     }
                 });
                 tier4Bank.forEach(c => {
                     if (!usedIds.has(c.id) && pool.prizes.length < 50) {
                         usedIds.add(c.id);
-                        pool.prizes.push({ card: c, tier: 4, count: 14 });
+                        pool.prizes.push({ card: c, tier: 4, count: 8 });
                     }
                 });
                 const lowBank = [...tier5Bank, ...generated5Bank];
@@ -1631,7 +1701,7 @@
                     pool.prizes.push({
                         card: { ...c, pt: lowPt },
                         tier: 5,
-                        count: pool.isMicro ? 3500 : 2100
+                        count: pool.isMicro ? 7000 : 4200
                     });
                 }
                 pool.totalTickets = pool.prizes.reduce((s, p) => s + p.count, 0);
@@ -1641,7 +1711,12 @@
 
         let currentPoolFilter = 'ALL';
 
+        const POOL_DATA_VERSION = '2026-11-official-v1';
         function initPoolsData() {
+            if (safeGetItem('pokevault_pool_data_version') !== POOL_DATA_VERSION) {
+                state.poolsRemaining = {};
+                safeSetItem('pokevault_pool_data_version', POOL_DATA_VERSION);
+            }
             POOL_CONFIGS.forEach(pool => {
                 const saved = state.poolsRemaining[pool.id];
                 if (!Array.isArray(saved) || saved.length !== pool.prizes.length || saved.reduce((a, b) => a + b, 0) <= 0) {
@@ -2202,23 +2277,7 @@
         }
 
         const BOX_SERIES_POOLS = {
-            'box-30th': buildDistinctBoxRoster('M6A', 'M6a', 103, [
-                ['135', '夢幻 ex RGB 緋紅 30th 紀念', 'RGB', 185000, 'sv4pt5', '232'],
-                ['135', '夢幻 ex FUR 黃金全圖', 'FUR', 68000, 'sv3pt5', '205'],
-                ['134', '超夢 ex SAR 30th 暗影覺醒', 'SAR', 62000, 'swsh12pt5', 'GG44'],
-                ['126', '皮卡丘 ex SR 30週年慶典', 'SR', 38000, 'sv8', '238'],
-                ['137', '噴火龍 30th 經典復刻', 'SAR', 42000, 'sv3pt5', '199'],
-                ['125', '甲賀忍蛙 ex SAR 忍法秘傳', 'SAR', 34000, 'sv3pt5', '200'],
-                ['130', '仙子伊布 ex SAR 夢幻星光', 'SAR', 29000, 'sv8pt5', '69'],
-                ['142', '洛奇亞 30th 銀翼復刻', 'SR', 15800, 'swsh12', '138']
-            ], [
-                '蛋蛋', '阿羅拉椰蛋樹', '電螢蟲', '甜甜螢', '彩粉蝶', '火焰鳥', '鳳王', '萊希拉姆', '呆火鱷 ex', '呆呆獸',
-                '拉普拉斯', '急凍鳥', '蓋歐卡', '帕路奇亞', '甲賀忍蛙 ex', '弱丁魚', '皮卡丘 (衝浪版)', '皮卡丘 (飛翔版)', '皮卡丘 (慶典版)', '皮卡丘 (森林版)',
-                '皮卡丘 ex', '閃電鳥', '捷克羅姆', '顫弦蠑螈', '莫魯貝可', '密勒頓', '超夢', '超夢 ex', '夢幻', '夢幻 ex',
-                '太陽伊布', '仙子伊布 ex', '未知圖騰', '飄飄球', '水晶燈火靈', '哲爾尼亞斯', '科斯莫古', '露奈雅拉', '固拉多', '路卡利歐',
-                '蟾蜍王', '鬃岩狼人', '故勒頓', '尼多蘭', '阿羅拉喵喵', '耿鬼 ex', '月亮伊布', '滑滑小子', '伊裴爾塔爾', '基拉祈 ex',
-                '帝牙盧卡', '索爾迦雷歐', '蒼響', '藏瑪然特', '賽富豪', '暴飛龍 ex', '喵喵', '百變怪', '伊布', '卡比獸'
-            ]),
+            'box-30th': OFFICIAL_M6A.filter(r => r[0] !== 152).map(r => m6aCard(r[0])),
             'box-sv10': buildDistinctBoxRoster('SV10', 'SV10', 98, [
                 ['125', '火箭隊的超夢 ex SAR', 'SAR', 86000, 'sv10', '229'],
                 ['130', '火箭隊的超夢 ex UR 黃金', 'UR', 64000, 'swsh12pt5', 'GG44'],
@@ -2299,21 +2358,17 @@
                 '烈咬陸鯊 ex', '冰伊布', '太晶冰伊布 ex', '海豚俠 ex', '古劍豹', '波盪水 ex', '雷伊布', '太晶雷伊布 ex',
                 '鐵臂膀 ex', '太陽伊布', '太晶太陽伊布 ex', '仙子伊布', '太晶仙子伊布 ex', '月亮伊布', '太晶月亮伊布 ex', '太晶伊布 ex'
             ]),
-            'box-151': buildDistinctBoxRoster('SV2A', 'SV2a', 165, [
-                ['201', '噴火龍 ex SAR 火山全圖', 'SAR', 64000, 'sv3pt5', '199'],
-                ['202', '水箭龜 ex SAR 深海全圖', 'SAR', 34000, 'sv3pt5', '200'],
-                ['200', '妙蛙花 ex SAR 密林全圖', 'SAR', 31000, 'sv3pt5', '198'],
-                ['205', '夢幻 ex SAR 粉色全圖', 'SAR', 26000, 'sv3pt5', '205'],
-                ['206', '莉佳的招待 SAR 全圖', 'SAR', 24000, 'sv3pt5', '203'],
-                ['173', '皮卡丘 AR 街角散步全圖', 'AR', 2400, 'sv3pt5', '173']
-            ], [
-                '妙蛙種子', '妙蛙草', '妙蛙花 ex', '小火龍', '火恐龍', '噴火龍 ex', '傑尼龜', '卡咪龜', '水箭龜 ex',
-                '巴大蝶', '大針蜂', '大比鳥', '皮卡丘', '雷丘', '穿山王', '尼多后', '尼多王', '皮可西',
-                '九尾 ex', '胖可丁 ex', '霸王花', '貓老大', '哥達鴨', '風速狗', '蚊香泳士', '胡地 ex', '怪力',
-                '隆隆岩 ex', '呆殼獸', '三合一磁怪', '白海獅', '耿鬼', '大岩蛇', '頑皮雷彈', '椰蛋樹', '嘎啦嘎啦',
-                '袋獸 ex', '寶石海星', '飛天螳螂', '電擊獸', '鴨嘴火獸', '鯉魚王', '暴鯉龍', '拉普拉斯', '百變怪',
-                '伊布', '水伊布', '雷伊布', '火伊布', '化石翼龍', '卡比獸', '急凍鳥', '閃電鳥 ex', '火焰鳥', '快龍', '超夢', '夢幻 ex'
-            ]),
+            'box-151': OFFICIAL_SV2A_FILES.map((f, i) => {
+                const n = i + 1, pad = String(n).padStart(3, '0');
+                let rarity = 'C', pt = 90;
+                if (n >= 208) { rarity = 'UR'; pt = n === 208 ? 9800 : 3200; }
+                else if (n >= 200) { rarity = 'SAR'; pt = ({ 200: 31000, 201: 64000, 202: 34000, 203: 10800, 204: 13200, 205: 26000, 206: 24000, 207: 9600 })[n]; }
+                else if (n >= 184) { rarity = 'SR'; pt = 1800; }
+                else if (n >= 166) { rarity = 'AR'; pt = n === 173 ? 2400 : 1500; }
+                else if (/EX$/.test(f)) { rarity = 'RR'; pt = 700; }
+                else if (n >= 152) { rarity = 'U'; pt = 60; }
+                return { id: `SV2A_${pad}`, name: `【SV2a 151】${SV2A_ZH[n]} ${rarity}`, code: `SV2a ${pad}/165`, rarity, pt, img: sv2aImg(n), ptcgSet: '', ptcgNum: '' };
+            }),
             'box-25th': buildDistinctBoxRoster('S8A', 'S8a', 28, [
                 ['001', '25週年黃金箱 純金皮卡丘 V', 'MUR', 125000, 'swshp', 'SWSH145'],
                 ['025', '25週年 黃金色違夢幻 UR', 'UR', 58000, 'sv4pt5', '232'],
@@ -2340,7 +2395,7 @@
         };
 
         const BOX_SETS = [
-            { id: 'box-30th', setCode: 'M6a', badge: '👑 2026 30週年 M6a', title: '寶可夢 30週年紀念皇冠盒 (M6a)', jpTitle: '30th CELEBRATION', desc: '收錄夢幻 RGB、夢幻 FUR、超夢 SAR 與 30 週年紀念卡（每包 6 枚 / 1BOX 20 包共 120 張）！', packPrice: 1350, boxPrice: 12800, cardsPerPack: 6, packsPerBox: 20, packGrad: 'from-sky-500 via-blue-700 to-amber-500', packAccent: '#fde047', coverImg: tcImg('cel25', '25') },
+            { id: 'box-30th', setCode: 'M6a', badge: '👑 2026 30週年 M6a', title: '寶可夢 30週年紀念皇冠盒 (M6a)', jpTitle: '30th CELEBRATION', desc: '官方收錄：夢幻 ex／超夢 ex FUR、10 張 SAR、20 張 AR、30 位畫師的 30 種皮卡丘與 30 張經典收藏（全卡閃卡・每包 6 枚）', packPrice: 1350, boxPrice: 12800, cardsPerPack: 6, packsPerBox: 20, packGrad: 'from-sky-500 via-blue-700 to-amber-500', packAccent: '#fde047', coverImg: m6aCard(135).img },
             { id: 'box-sv10', setCode: 'SV10', badge: '🚀 2025 SV10 火箭隊', title: 'SV10 火箭隊的榮耀 擴充盒', jpTitle: 'ロケット団の栄光', desc: '主打火箭隊的超夢 ex SAR、坂木 SAR 與火焰鳥 SAR（每包 5 枚 / 1BOX 30 包共 150 張）！', packPrice: 950, boxPrice: 8900, cardsPerPack: 5, packsPerBox: 30, packGrad: 'from-rose-800 via-red-950 to-slate-950', packAccent: '#fb7185', coverImg: tcImg('sv10', '229') },
             { id: 'box-m1l', setCode: 'M1L', badge: '🥊 MEGA 超級勇氣', title: 'M1L 超級勇氣 (Mega Brave)', jpTitle: 'メガブレイブ', desc: '主打超級路卡利歐 ex MUR 純金與莉莉艾的決心 SAR（每包 5 枚 / 1BOX 30 包共 150 張）！', packPrice: 980, boxPrice: 9200, cardsPerPack: 5, packsPerBox: 30, packGrad: 'from-orange-700 via-amber-950 to-slate-950', packAccent: '#fb923c', coverImg: tcImg('sv4pt5', '234') },
             { id: 'box-m2a', setCode: 'M2a', badge: '🐉 MEGA 夢想特別彈', title: 'M2a 超級夢想 ex (MEGA Dream ex)', jpTitle: 'MEGAドリームex', desc: '收錄超級快龍 ex MUR 純金與超級耿鬼 ex SAR（高級包每包 10 枚 / 1BOX 10 包共 100 張）！', packPrice: 1150, boxPrice: 10800, cardsPerPack: 10, packsPerBox: 10, packGrad: 'from-emerald-800 via-teal-950 to-slate-950', packAccent: '#34d399', coverImg: tcImg('sv3pt5', '149') },
@@ -2348,10 +2403,16 @@
             { id: 'box-m2', setCode: 'M2', badge: '🔥 MEGA 煉獄烈焰 X', title: 'M2 煉獄烈焰 X (Inferno X)', jpTitle: 'インフェルノX', desc: '收錄超級噴火龍 X ex MUR 純金與小光 (Dawn) SAR（每包 5 枚 / 1BOX 30 包共 150 張）！', packPrice: 1050, boxPrice: 9800, cardsPerPack: 5, packsPerBox: 30, packGrad: 'from-sky-800 via-blue-950 to-slate-950', packAccent: '#38bdf8', coverImg: tcImg('sv3pt5', '199') },
             { id: 'box-sv11', setCode: 'SV11', badge: '⚡ SV11 黑雷＆白焰', title: 'SV11 黑雷＆白焰 雙擴充盒', jpTitle: 'ブラックボルト・ホワイトフレア', desc: '收錄純黑捷克羅姆 BWR、純白萊希拉姆 BWR 與比克提尼（每包 7 枚 / 1BOX 20 包共 140 張）！', packPrice: 980, boxPrice: 9200, cardsPerPack: 7, packsPerBox: 20, packGrad: 'from-zinc-700 via-slate-900 to-black', packAccent: '#e2e8f0', coverImg: tcImg('swsh11', '186') },
             { id: 'box-sv85', setCode: 'SV8a', badge: '💎 SV8a 太晶慶典 ex', title: 'SV8a 太晶慶典 ex 頂級盒', jpTitle: 'テラスタルフェスex', desc: '收錄太晶月亮伊布 SAR、太晶仙子伊布 SAR 與黃金皮卡丘 UR（每包 10 枚 / 1BOX 10 包共 100 張）！', packPrice: 1200, boxPrice: 11200, cardsPerPack: 10, packsPerBox: 10, packGrad: 'from-indigo-800 via-purple-950 to-slate-950', packAccent: '#c084fc', coverImg: tcImg('sv8pt5', '161') },
-            { id: 'box-151', setCode: 'SV2a', badge: '🔴 SV2a 經典 151', title: 'SV2a 寶可夢卡牌 151 強化盒', jpTitle: 'ポケモンカード151', desc: '御三家 SAR 齊聚，收錄噴火龍、水箭龜、妙蛙花 SAR 與皮卡丘 AR（每包 7 枚 / 1BOX 20 包共 140 張）！', packPrice: 920, boxPrice: 8600, cardsPerPack: 7, packsPerBox: 20, packGrad: 'from-red-800 via-rose-950 to-slate-950', packAccent: '#f87171', coverImg: tcImg('sv3pt5', '199') },
+            { id: 'box-151', setCode: 'SV2a', badge: '🔴 SV2a 經典 151', title: 'SV2a 寶可夢卡牌 151 強化盒', jpTitle: 'ポケモンカード151', desc: '御三家 SAR 齊聚，收錄噴火龍、水箭龜、妙蛙花 SAR 與皮卡丘 AR（每包 7 枚 / 1BOX 20 包共 140 張）！', packPrice: 920, boxPrice: 8600, cardsPerPack: 7, packsPerBox: 20, packGrad: 'from-red-800 via-rose-950 to-slate-950', packAccent: '#f87171', coverImg: sv2aImg(201) },
             { id: 'box-25th', setCode: 'S8a', badge: '🎂 25週年黃金紀念箱', title: '寶可夢 25週年黃金紀念箱', jpTitle: '25th GOLDEN BOX', desc: '收錄純金皮卡丘 V、黃金色違夢幻 UR 與純金精靈球（每包 5 枚 / 1BOX 16 包共 80 張）！', packPrice: 1250, boxPrice: 11800, cardsPerPack: 5, packsPerBox: 16, packGrad: 'from-yellow-700 via-amber-950 to-slate-950', packAccent: '#fde047', coverImg: tcImg('swshp', 'SWSH145') },
             { id: 'box-sv9', setCode: 'SV9', badge: '🤝 SV9 對戰搭檔', title: 'SV9 對戰搭檔 (Battle Partners)', jpTitle: 'バトルパートナーズ', desc: '收錄莉莉艾的皮皮 ex SAR、N 的索羅亞克 ex SAR（每包 5 枚 / 1BOX 30 包共 150 張）！', packPrice: 880, boxPrice: 8200, cardsPerPack: 5, packsPerBox: 30, packGrad: 'from-cyan-800 via-sky-950 to-slate-950', packAccent: '#22d3ee', coverImg: tcImg('sv9', '184') }
         ];
+
+        // 其餘系列卡表正在對照官方資料庫重建，重建完成前先不顯示（避免出現錯誤卡圖）
+        const VERIFIED_BOX_IDS = ['box-30th', 'box-151'];
+        for (let i = BOX_SETS.length - 1; i >= 0; i--) {
+            if (!VERIFIED_BOX_IDS.includes(BOX_SETS[i].id)) BOX_SETS.splice(i, 1);
+        }
 
         function renderBoosterPackVisual(box, size = 'sm') {
             if (box.id === 'box-30th') {
@@ -2372,9 +2433,9 @@
                         Pokémon
                     </div>
                     <div class="relative flex-1 flex items-center justify-center px-1">
-                        <img src="${tcImg('sv3pt5', '151')}" alt="Mew" class="w-11 h-14 object-contain -mr-2 -mt-3 rounded opacity-95 drop-shadow">
-                        <img src="${tcImg('cel25', '25')}" alt="Pikachu" class="relative z-10 w-14 h-18 object-contain rounded shadow-lg border border-yellow-300/70">
-                        <img src="${tcImg('sv3pt5', '150')}" alt="Mewtwo" class="w-11 h-14 object-contain -ml-2 -mt-3 rounded opacity-95 drop-shadow">
+                        <img src="${m6aCard(57).img}" alt="Mew" class="w-11 h-14 object-contain -mr-2 -mt-3 rounded opacity-95 drop-shadow">
+                        <img src="${m6aCard(17).img}" alt="Pikachu" class="relative z-10 w-14 h-18 object-contain rounded shadow-lg border border-yellow-300/70">
+                        <img src="${m6aCard(55).img}" alt="Mewtwo" class="w-11 h-14 object-contain -ml-2 -mt-3 rounded opacity-95 drop-shadow">
                     </div>
                     <div class="mx-1.5 mb-1 py-1 rounded-lg bg-gradient-to-r from-amber-500 via-yellow-300 to-amber-500 border border-amber-900 text-center shadow">
                         <div class="font-display font-black text-[11px] text-amber-950 leading-none">30th</div>
@@ -2479,7 +2540,7 @@
         function generateCardsFromBox(box, packCount) {
             const roster = BOX_SERIES_POOLS[box.id] || [];
             const topHits = roster.filter(c => ['RGB', 'MUR', 'BWR', 'FUR', 'SAR', 'UR'].includes(c.rarity));
-            const midHits = roster.filter(c => ['SR', 'AR', 'RRR'].includes(c.rarity));
+            const midHits = roster.filter(c => ['SR', 'AR', 'RRR', 'CLASSIC'].includes(c.rarity));
             const baseCards = roster.filter(c => ['RR', 'R', 'U', 'C'].includes(c.rarity));
 
             const totalCards = packCount * (box.cardsPerPack || 5);
@@ -2490,9 +2551,9 @@
                 const r = Math.random();
                 let poolPick = baseCards.length ? baseCards : roster;
                 if (isAceSlot) {
-                    if (r < 0.004 && topHits.length) poolPick = topHits;
-                    else if (r < 0.065 && midHits.length) poolPick = midHits;
-                } else if (r < 0.015 && midHits.length) {
+                    if (r < 0.002 && topHits.length) poolPick = topHits;
+                    else if (r < 0.04 && midHits.length) poolPick = midHits;
+                } else if (r < 0.008 && midHits.length) {
                     poolPick = midHits;
                 }
                 const chosen = poolPick[Math.floor(Math.random() * poolPick.length)];
