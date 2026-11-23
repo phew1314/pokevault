@@ -1080,43 +1080,143 @@
             }
         };
 
+        // ---- Sample-based audio: draw SFX synced to the cinema clips + original lo-fi BGM
+        const AudioBank = {
+            buffers: {},
+            loading: {},
+            sfxGain: null,
+            bgmGain: null,
+            active: new Set(),
+            SFX: {
+                intro: 'audio/sfx_intro.mp3', bigA: 'audio/sfx_bigA.mp3', rev: 'audio/sfx_rev.mp3',
+                flip: 'audio/sfx_flip.mp3', reveal: 'audio/sfx_reveal.mp3', reveal_rare: 'audio/sfx_reveal_rare.mp3',
+                reveal_big: 'audio/sfx_reveal_big.mp3', glitch: 'audio/sfx_glitch.mp3'
+            },
+            init() {
+                SoundEngine.ensureCtx();
+                const ctx = SoundEngine.ctx;
+                if (!ctx || this.sfxGain) return !!ctx;
+                this.sfxGain = ctx.createGain(); this.sfxGain.gain.value = 0.9; this.sfxGain.connect(ctx.destination);
+                this.bgmGain = ctx.createGain(); this.bgmGain.gain.value = 0; this.bgmGain.connect(ctx.destination);
+                return true;
+            },
+            load(key, url) {
+                if (this.buffers[key]) return Promise.resolve(this.buffers[key]);
+                if (this.loading[key]) return this.loading[key];
+                if (!this.init()) return Promise.resolve(null);
+                const ctx = SoundEngine.ctx;
+                this.loading[key] = fetch(url).then(r => r.arrayBuffer())
+                    .then(ab => new Promise((res, rej) => ctx.decodeAudioData(ab, res, rej)))
+                    .then(buf => (this.buffers[key] = buf))
+                    .catch(() => { delete this.loading[key]; return null; });
+                return this.loading[key];
+            },
+            preloadSfx() { Object.entries(this.SFX).forEach(([k, u]) => this.load(k, u)); },
+            // play an SFX now; offset lets clip audio catch up with the video's current time
+            play(key, offset = 0, gain = 1) {
+                if (SoundEngine.muted || !this.init()) return null;
+                const buf = this.buffers[key];
+                if (!buf) { this.load(key, this.SFX[key]); return null; }
+                if (offset >= buf.duration) return null;
+                const ctx = SoundEngine.ctx;
+                const src = ctx.createBufferSource(); src.buffer = buf;
+                const g = ctx.createGain(); g.gain.value = gain;
+                src.connect(g); g.connect(this.sfxGain);
+                src.start(0, Math.max(0, offset));
+                const h = { src, g };
+                this.active.add(h); src.onended = () => this.active.delete(h);
+                return h;
+            },
+            stop(h, fade = 0.15) {
+                if (!h) return;
+                try {
+                    const t = SoundEngine.ctx.currentTime;
+                    h.g.gain.setTargetAtTime(0, t, fade / 3);
+                    h.src.stop(t + fade);
+                } catch (e) {}
+                this.active.delete(h);
+            },
+            stopAll(fade = 0.2) { [...this.active].forEach(h => this.stop(h, fade)); },
+            duckBgm(on) {
+                if (!this.bgmGain) return;
+                const t = SoundEngine.ctx.currentTime;
+                this.bgmGain.gain.setTargetAtTime(TownBGM.playing ? (on ? TownBGM.volume * 0.22 : TownBGM.volume) : 0, t, 0.25);
+            }
+        };
+
         const TownBGM = {
             playing: false,
             trackIdx: 0,
-            step: 0,
-            timer: null,
+            volume: 0.32,
+            src: null,
+            // original lo-fi loops; each file has 0.1 s of wrap-around padding so the loop is gapless
             tracks: [
-                { name: 'Pallet Town Lo-Fi', notes: [261.6, 293.7, 329.6, 392.0, 440.0, 392.0, 329.6, 293.7] },
-                { name: 'Goldenrod City Chill', notes: [329.6, 392.0, 493.9, 523.3, 493.9, 392.0, 329.6, 293.7] },
-                { name: 'Littleroot Breeze', notes: [293.7, 349.2, 440.0, 523.3, 440.0, 349.2, 329.6, 293.7] },
-                { name: 'Ecruteak Midnight', notes: [246.9, 293.7, 369.9, 440.0, 369.9, 293.7, 246.9, 220.0] }
+                { name: 'Vault Night', url: 'audio/bgm_vault_night.mp3', loopStart: 0.1, loopLen: 2171076 / 44100 },
+                { name: 'Card Shop Afternoon', url: 'audio/bgm_card_shop.mp3', loopStart: 0.1, loopLen: 2016000 / 44100 }
             ],
-            toggle() {
-                this.playing = !this.playing;
-                if (this.playing) {
-                    SoundEngine.ensureCtx();
-                    this.startLoop();
-                } else {
-                    clearInterval(this.timer);
-                }
+            pref() { try { return localStorage.getItem('pv_bgm'); } catch (e) { return null; } },
+            savePref(v) { try { localStorage.setItem('pv_bgm', v); } catch (e) {} },
+            // start on the first tap anywhere (browsers block sound before a user gesture)
+            armAutostart() {
+                const go = () => {
+                    window.removeEventListener('pointerdown', go, true);
+                    window.removeEventListener('touchend', go, true);
+                    window.removeEventListener('keydown', go, true);
+                    AudioBank.init();
+                    AudioBank.preloadSfx();
+                    if (this.pref() !== 'off' && !this.playing) this.start();
+                };
+                window.addEventListener('pointerdown', go, true);
+                window.addEventListener('touchend', go, true);
+                window.addEventListener('keydown', go, true);
+            },
+            async start() {
+                if (!AudioBank.init()) return;
+                this.playing = true;
                 this.updateLabel();
+                const idx = this.trackIdx;
+                const tr = this.tracks[idx];
+                const buf = await AudioBank.load('bgm' + idx, tr.url);
+                if (!buf || !this.playing || this.trackIdx !== idx) return;
+                this.stopSource(0.05);
+                const ctx = SoundEngine.ctx;
+                const src = ctx.createBufferSource();
+                src.buffer = buf; src.loop = true;
+                src.loopStart = tr.loopStart; src.loopEnd = tr.loopStart + tr.loopLen;
+                src.connect(AudioBank.bgmGain);
+                src.start(0, tr.loopStart);
+                this.src = src;
+                const cinemaOpen = !document.getElementById('cinema-modal')?.classList.contains('hidden');
+                AudioBank.bgmGain.gain.cancelScheduledValues(ctx.currentTime);
+                AudioBank.bgmGain.gain.setTargetAtTime(cinemaOpen ? this.volume * 0.22 : this.volume, ctx.currentTime, 0.6);
+            },
+            stopSource(fade = 0.5) {
+                if (!this.src) return;
+                const s = this.src; this.src = null;
+                try { s.stop(SoundEngine.ctx.currentTime + fade); } catch (e) {}
+            },
+            stop() {
+                this.playing = false;
+                if (AudioBank.bgmGain) {
+                    const t = SoundEngine.ctx.currentTime;
+                    AudioBank.bgmGain.gain.setTargetAtTime(0, t, 0.2);
+                }
+                this.stopSource(0.8);
+                this.updateLabel();
+            },
+            toggle() {
+                if (this.playing) { this.stop(); this.savePref('off'); }
+                else { this.savePref('on'); this.start(); }
             },
             nextTrack() {
                 this.trackIdx = (this.trackIdx + 1) % this.tracks.length;
-                this.step = 0;
-                if (!this.playing) this.toggle();
-                else this.updateLabel();
-            },
-            startLoop() {
-                clearInterval(this.timer);
-                this.timer = setInterval(() => {
-                    if (!this.playing || SoundEngine.muted) return;
-                    const tr = this.tracks[this.trackIdx];
-                    const f = tr.notes[this.step % tr.notes.length];
-                    SoundEngine.playTone(f, 0.34, 'sine', 0.045, 0);
-                    if (this.step % 2 === 0) SoundEngine.playTone(f * 0.5, 0.38, 'triangle', 0.03, 0);
-                    this.step++;
-                }, 460);
+                this.savePref('on');
+                if (AudioBank.bgmGain && this.playing) {
+                    const t = SoundEngine.ctx.currentTime;
+                    AudioBank.bgmGain.gain.setTargetAtTime(0, t, 0.15);
+                    setTimeout(() => this.start(), 450);
+                } else this.start();
+                this.updateLabel();
             },
             updateLabel() {
                 const tr = this.tracks[this.trackIdx];
@@ -2146,13 +2246,19 @@
                 return new Promise(resolve => {
                     const v = document.getElementById('cinema-video');
                     let done = false;
-                    const end = () => { if (done) return; done = true; v.onended = v.onerror = null; clearTimeout(guard); resolve(); };
+                    const end = () => { if (done) return; done = true; v.onended = v.onerror = v.onplaying = null; clearTimeout(guard); resolve(); };
                     v.style.transition = 'none';
                     v.style.filter = '';
                     v.onended = end;
                     v.onerror = end;
                     v.src = this.VIDEO.src[name];
                     v.currentTime = 0;
+                    AudioBank.stop(this._clipSfx, 0.05);
+                    this._clipSfx = null;
+                    v.onplaying = () => {
+                        v.onplaying = null;
+                        if (!done) this._clipSfx = AudioBank.play(name, v.currentTime || 0);
+                    };
                     const guard = setTimeout(end, 9000); // never hang if the video stalls
                     const pr = v.play();
                     if (pr && pr.catch) pr.catch(end);   // autoplay blocked → skip straight to the reveal
@@ -2226,6 +2332,7 @@
                     const big = tier <= 2;
                     const t0 = performance.now();
                     const LIFT = 260, FLIP = big ? 900 : 650;
+                    setTimeout(() => { if (this.playId === playId && !this.finished) AudioBank.play('flip', 0, 0.9); }, LIFT - 40);
                     let flipped = false, settled = false;
                     const loop = now => {
                         if (this.finished || this.playId !== playId) return;
@@ -2239,8 +2346,9 @@
                         g.position.z = Math.sin(b * Math.PI) * 0.6;
                         if (!flipped && b > 0.5) {
                             flipped = true;
-                            if (big) { this.flash(tier === 1 ? 'radial-gradient(circle, #fff 0%, #f9a8d4 40%, transparent 75%)' : 'radial-gradient(circle, #fff 0%, #fde047 40%, transparent 75%)', 900, 1); SoundEngine.playJackpot(); }
-                            else SoundEngine.playCardSlide();
+                            if (big) { this.flash(tier === 1 ? 'radial-gradient(circle, #fff 0%, #f9a8d4 40%, transparent 75%)' : 'radial-gradient(circle, #fff 0%, #fde047 40%, transparent 75%)', 900, 1); AudioBank.play('reveal_big') || SoundEngine.playJackpot(); }
+                            else if (tier === 3) AudioBank.play('reveal_rare') || SoundEngine.playJackpot();
+                            else AudioBank.play('reveal') || SoundEngine.playCardSlide();
                         }
                         g.userData.glow.material.opacity = (tier <= 2 ? 1 : (tier === 3 ? 0.8 : 0.45)) * eb * (0.75 + Math.sin(now * 0.008) * 0.25);
                         if (b >= 1 && !settled) { settled = true; resolve(g); }
@@ -2259,6 +2367,7 @@
                     const base = g.scale.x;
                     const mats = [g.userData.front.material, g.userData.back.material, g.userData.glow.material];
                     const flick = [80, 160, 210, 330, 380, 520, 560, 700];
+                    AudioBank.play('glitch');
                     let fi = 0;
                     const loop = now => {
                         if (this.finished || this.playId !== playId) return;
@@ -2303,6 +2412,7 @@
                 title.textContent = cards.length > 1 ? `🎴 ${cards.length} 連抽開封中...` : '🎴 開封中...';
                 modal.classList.remove('hidden');
                 modal.onclick = () => { if (this.waitingTap) this.finish(); };
+                AudioBank.init(); AudioBank.preloadSfx(); AudioBank.duckBgm(true);
                 SoundEngine.playClick();
                 this.ensureRenderer(document.getElementById('cinema-canvas'), Math.max(300, window.innerWidth), Math.max(400, window.innerHeight));
                 this.renderer.clear();
@@ -2355,8 +2465,11 @@
                 if (this.renderer) this.renderer.clear();
                 const v = document.getElementById('cinema-video');
                 try { v.pause(); } catch (e) {}
-                v.onended = v.onerror = null;
+                v.onended = v.onerror = v.onplaying = null;
                 v.style.filter = '';
+                AudioBank.stopAll(0.35);
+                this._clipSfx = null;
+                AudioBank.duckBgm(false);
                 const modal = document.getElementById('cinema-modal');
                 modal.onclick = null;
                 modal.classList.add('hidden');
@@ -4255,6 +4368,7 @@
             try { AuctionSystem.init(); } catch (e) {}
             try { AIChatTradeSystem.init(); } catch (e) {}
             try { setTimeout(() => CinemaEngine.preloadVideos(), 1500); } catch (e) {}
+            try { TownBGM.armAutostart(); } catch (e) {}
         }
 
         if (document.readyState === 'loading') {
