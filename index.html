@@ -1090,7 +1090,10 @@
             SFX: {
                 intro: 'audio/sfx_intro.mp3', bigA: 'audio/sfx_bigA.mp3', rev: 'audio/sfx_rev.mp3',
                 flip: 'audio/sfx_flip.mp3', reveal: 'audio/sfx_reveal.mp3', reveal_rare: 'audio/sfx_reveal_rare.mp3',
-                reveal_big: 'audio/sfx_reveal_big.mp3', glitch: 'audio/sfx_glitch.mp3'
+                reveal_big: 'audio/sfx_reveal_big.mp3', glitch: 'audio/sfx_glitch.mp3',
+                foil_loop: 'audio/sfx_foil_loop.mp3', foil_grab: 'audio/sfx_foil_grab.mp3', foil_rip: 'audio/sfx_foil_rip.mp3',
+                pack_open: 'audio/sfx_pack_open.mp3', card_slide0: 'audio/sfx_card_slide0.mp3', card_slide1: 'audio/sfx_card_slide1.mp3',
+                shuffle: 'audio/sfx_shuffle.mp3'
             },
             init() {
                 SoundEngine.ensureCtx();
@@ -1137,11 +1140,25 @@
                 this.active.delete(h);
             },
             stopAll(fade = 0.2) { [...this.active].forEach(h => this.stop(h, fade)); },
-            duckBgm(on) {
-                if (!this.bgmGain) return;
+            playLoop(key) {
+                if (SoundEngine.muted || !this.init()) return null;
+                const buf = this.buffers[key];
+                if (!buf) { this.load(key, this.SFX[key]); return null; }
+                const ctx = SoundEngine.ctx;
+                const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+                const g = ctx.createGain(); g.gain.value = 0;
+                src.connect(g); g.connect(this.sfxGain);
+                src.start(0, Math.random() * buf.duration);
+                const h = { src, g }; this.active.add(h);
+                return h;
+            },
+            setLoop(h, level, rate) {
+                if (!h) return;
                 const t = SoundEngine.ctx.currentTime;
-                this.bgmGain.gain.setTargetAtTime(TownBGM.playing ? (on ? TownBGM.volume * 0.22 : TownBGM.volume) : 0, t, 0.25);
-            }
+                h.g.gain.setTargetAtTime(level, t, 0.03);
+                if (rate) h.src.playbackRate.setTargetAtTime(rate, t, 0.05);
+            },
+            duckBgm(on) { on ? TownBGM.hold() : TownBGM.release(); }
         };
 
         const TownBGM = {
@@ -1149,6 +1166,17 @@
             trackIdx: 0,
             volume: 0.32,
             src: null,
+            holds: 0,
+            // silence the music while a draw / pack opening is on screen, bring it back afterwards
+            hold() {
+                this.holds++;
+                if (AudioBank.bgmGain) AudioBank.bgmGain.gain.setTargetAtTime(0, SoundEngine.ctx.currentTime, 0.08);
+            },
+            release() {
+                this.holds = Math.max(0, this.holds - 1);
+                if (this.holds === 0 && AudioBank.bgmGain && this.playing)
+                    AudioBank.bgmGain.gain.setTargetAtTime(this.volume, SoundEngine.ctx.currentTime, 0.6);
+            },
             // original lo-fi loops; each file has 0.1 s of wrap-around padding so the loop is gapless
             tracks: [
                 { name: 'Adventure Road', url: 'audio/bgm_adventure_road.mp3', loopStart: 0.1, loopLen: 1245176 / 44100 },
@@ -1188,9 +1216,8 @@
                 src.connect(AudioBank.bgmGain);
                 src.start(0, tr.loopStart);
                 this.src = src;
-                const cinemaOpen = !document.getElementById('cinema-modal')?.classList.contains('hidden');
                 AudioBank.bgmGain.gain.cancelScheduledValues(ctx.currentTime);
-                AudioBank.bgmGain.gain.setTargetAtTime(cinemaOpen ? this.volume * 0.22 : this.volume, ctx.currentTime, 0.6);
+                AudioBank.bgmGain.gain.setTargetAtTime(this.holds > 0 ? 0 : this.volume, ctx.currentTime, 0.6);
             },
             stopSource(fade = 0.5) {
                 if (!this.src) return;
@@ -2414,7 +2441,8 @@
                 title.textContent = cards.length > 1 ? `🎴 ${cards.length} 連抽開封中...` : '🎴 開封中...';
                 modal.classList.remove('hidden');
                 modal.onclick = () => { if (this.waitingTap) this.finish(); };
-                AudioBank.init(); AudioBank.preloadSfx(); AudioBank.duckBgm(true);
+                AudioBank.init(); AudioBank.preloadSfx();
+                if (!this._bgmHeld) { this._bgmHeld = true; TownBGM.hold(); }
                 SoundEngine.playClick();
                 this.ensureRenderer(document.getElementById('cinema-canvas'), Math.max(300, window.innerWidth), Math.max(400, window.innerHeight));
                 this.renderer.clear();
@@ -2471,7 +2499,7 @@
                 v.style.filter = '';
                 AudioBank.stopAll(0.35);
                 this._clipSfx = null;
-                AudioBank.duckBgm(false);
+                if (this._bgmHeld) { this._bgmHeld = false; TownBGM.release(); }
                 const modal = document.getElementById('cinema-modal');
                 modal.onclick = null;
                 modal.classList.add('hidden');
@@ -2925,6 +2953,20 @@
                 document.getElementById('pack-sealed-stage').classList.remove('hidden');
                 document.getElementById('pack-peek-stage').classList.add('hidden');
                 openModal('pack-tear-modal');
+                AudioBank.init(); AudioBank.preloadSfx();
+                if (!this._bgmHeld) { this._bgmHeld = true; TownBGM.hold(); }
+                if (!this._modalWatch) {
+                    // whichever way the pack window closes, stop pack sounds and bring the music back
+                    const modal = document.getElementById('pack-tear-modal');
+                    this._modalWatch = new MutationObserver(() => {
+                        if (modal.classList.contains('hidden') && this._bgmHeld) {
+                            this._bgmHeld = false;
+                            AudioBank.stop(this._foilLoop, 0.1); this._foilLoop = null;
+                            TownBGM.release();
+                        }
+                    });
+                    this._modalWatch.observe(modal, { attributes: true, attributeFilter: ['class'] });
+                }
                 this.bindGestures();
             },
 
@@ -2937,10 +2979,15 @@
                 let startX = 0;
 
                 if (wrap) {
+                    let lastX = 0, lastT = 0;
                     wrap.addEventListener('pointerdown', (e) => {
                         if (this.isTorn) return;
                         draggingRip = true;
-                        startX = e.clientX || 0;
+                        startX = lastX = e.clientX || 0;
+                        lastT = performance.now();
+                        AudioBank.play('foil_grab', 0, 0.8);
+                        AudioBank.stop(this._foilLoop, 0.05);
+                        this._foilLoop = AudioBank.playLoop('foil_loop');
                     });
                     window.addEventListener('pointermove', (e) => {
                         if (!draggingRip || this.isTorn) return;
@@ -2951,6 +2998,14 @@
                         const pctEl = document.getElementById('pack-tear-pct');
                         if (strip) strip.style.transform = `translateX(${deltaX * 0.85}px) rotate(${pct * 0.12}deg)`;
                         if (pctEl) pctEl.textContent = `${pct}%`;
+                        // tearing sound follows the finger: louder and sharper the faster you drag forward
+                        const now = performance.now(), x = e.clientX || 0;
+                        const v = Math.max(0, x - lastX) / Math.max(8, now - lastT);   // px per ms
+                        lastX = x; lastT = now;
+                        const k = Math.min(1, v / 1.2);
+                        AudioBank.setLoop(this._foilLoop, 0.15 + 0.85 * k, 0.85 + 0.45 * k);
+                        clearTimeout(this._foilIdle);
+                        this._foilIdle = setTimeout(() => AudioBank.setLoop(this._foilLoop, 0.05), 90);
                         if (pct >= 70) {
                             draggingRip = false;
                             this.tearOpen();
@@ -2959,6 +3014,7 @@
                     window.addEventListener('pointerup', () => {
                         if (!draggingRip) return;
                         draggingRip = false;
+                        AudioBank.stop(this._foilLoop, 0.12); this._foilLoop = null;
                         if (!this.isTorn && this.ripProgress < 70) {
                             const strip = document.getElementById('pack-tear-strip');
                             const pctEl = document.getElementById('pack-tear-pct');
@@ -3007,7 +3063,9 @@
             tearOpen() {
                 if (this.isTorn) return;
                 this.isTorn = true;
-                SoundEngine.playRealisticFoilRip();
+                AudioBank.stop(this._foilLoop, 0.08); this._foilLoop = null;
+                AudioBank.play('foil_rip') || SoundEngine.playRealisticFoilRip();
+                setTimeout(() => AudioBank.play('pack_open', 0, 0.9), 330);
                 const strip = document.getElementById('pack-tear-strip');
                 const pctEl = document.getElementById('pack-tear-pct');
                 if (pctEl) pctEl.textContent = '100%';
@@ -3206,7 +3264,7 @@
             toggleFanSpread() {
                 this.fanSpread = !this.fanSpread;
                 this.rebuild3DStackMeshes();
-                SoundEngine.playCardSlide();
+                AudioBank.play('shuffle') || SoundEngine.playCardSlide();
             },
 
             adjustZoom(delta) {
@@ -3222,8 +3280,10 @@
             revealNextCard() {
                 if (this.cards.length === 0) return;
                 const popped = this.cards.shift();
-                SoundEngine.playCardSlide();
-                if (resolveCardTier(popped) <= 2) SoundEngine.playJackpot();
+                const pt = resolveCardTier(popped);
+                AudioBank.play(Math.random() < 0.5 ? 'card_slide0' : 'card_slide1') || SoundEngine.playCardSlide();
+                if (pt <= 2) AudioBank.play('reveal_big') || SoundEngine.playJackpot();
+                else if (pt === 3) AudioBank.play('reveal_rare', 0, 0.8);
                 showToast(`翻出：${popped.name} (${popped.pt.toLocaleString()} PT)`);
                 if (this.cards.length === 0) {
                     this.revealAllToResult();
